@@ -1,0 +1,3957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docket — Attorney Task Manager</title>
+<style>
+  :root{
+    --bg:#f5f5f3; --surface:#ffffff; --surface-2:#fafaf9; --text:#1c1e21; --muted:#6b6f76;
+    --border:#e3e3e0; --accent:#4f6f8f; --accent-100:#eaf0f6; --accent-600:#3f5a75; --accent-700:#334a61;
+    --selected-bg:#c7ddef; --selected-border:#3f5a75;
+    --danger:#b3261e; --danger-100:#fbeae9; --warn:#a8681c; --warn-100:#fbf1e4;
+    --ok:#3a7a4e; --radius:6px; --shadow:0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    --shadow-lg:0 12px 32px rgba(0,0,0,.18);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:600}
+  button{font:inherit;cursor:pointer}
+  input,textarea,select{font:inherit;color:inherit}
+  .app{display:grid;grid-template-columns:240px 1fr 340px;height:100vh;min-height:600px}
+  .sidebar{border-right:1px solid var(--border);background:var(--surface-2);padding:18px 14px;display:flex;flex-direction:column;gap:20px;overflow-y:auto}
+  .brand{display:flex;align-items:baseline;gap:8px}
+  .brand h1{font-size:21px;letter-spacing:.02em}
+  .brand .sub{font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .today-date{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-700);font-weight:600}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--radius);padding:7px 12px;font-size:13px}
+  .btn:hover{background:var(--accent-100);border-color:var(--accent)}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn-primary:hover{background:var(--accent-600);border-color:var(--accent-600)}
+  .btn-ghost{border-color:transparent;background:transparent}
+  .btn-ghost:hover{background:var(--accent-100)}
+  .btn-danger{color:var(--danger)}
+  .btn-danger:hover{background:var(--danger-100);border-color:var(--danger)}
+  .btn-block{width:100%}
+  .btn-sm{padding:4px 8px;font-size:12px}
+  .section-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:0 2px}
+  .nav-list{display:flex;flex-direction:column;gap:2px}
+  .nav-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 8px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text)}
+  .nav-row:hover{background:var(--accent-100)}
+  .nav-row.active{background:var(--selected-bg);border-color:var(--selected-border);font-weight:600}
+  .nav-row .count{margin-left:auto;font-size:11px;color:var(--muted);background:var(--surface);border-radius:10px;padding:1px 7px}
+  .nav-row.overdue .count{color:var(--danger);background:var(--danger-100)}
+  .matter-row{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border-radius:var(--radius);border:1px solid transparent;background:transparent}
+  .matter-row:hover{background:var(--accent-100)}
+  .matter-row.active{background:var(--selected-bg);border-color:var(--selected-border)}
+  .matter-row .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+  .matter-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left;background:none;border:0;padding:0;color:inherit}
+  .matter-row .count{font-size:11px;color:var(--muted)}
+  .matter-row .del{opacity:0;font-size:12px;color:var(--muted);border:0;background:none;padding:0 2px}
+  .matter-row:hover .del{opacity:1}
+  .matter-row .del:hover{color:var(--danger)}
+  .add-matter{display:flex;gap:6px}
+  .add-matter input{flex:1;min-width:0;border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;font-size:12px;background:var(--surface)}
+  .sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+  .main{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .main-head{padding:18px 24px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
+  .main-head-top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  .main-head h2{font-size:26px}
+  .main-head-top .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .search{border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;font-size:13px;width:210px;background:var(--surface)}
+  .progress-row{display:flex;align-items:center;gap:10px}
+  .progress-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--accent)}
+  .progress-label{font-size:11px;color:var(--muted);white-space:nowrap}
+  .list{flex:1;overflow-y:auto;padding:6px 24px 0}
+  .task{display:flex;flex-direction:column}
+  .task-row{display:flex;align-items:flex-start;gap:11px;padding:11px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-left:3px solid transparent}
+  .task-row:hover{background:var(--surface)}
+  .task-row.selected{background:var(--selected-bg);border-left-color:var(--selected-border)}
+  .task-row.done{opacity:.5}
+  .checkbox{width:19px;height:19px;flex:none;border:1.5px solid var(--muted);border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;padding:0;margin-top:1px}
+  .checkbox.checked{background:var(--accent);border-color:var(--accent)}
+  .checkbox.checked::after{content:"";display:block;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+  .task-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .task-title{font-size:14.5px;line-height:1.35}
+  .task-title.done{text-decoration:line-through}
+  .task-meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+  .meta-matter{color:var(--accent-700);font-weight:600}
+  .meta-due{padding:1px 6px;border-radius:3px}
+  .meta-due.overdue{color:var(--danger);background:var(--danger-100);font-weight:600}
+  .meta-due.today{color:var(--accent-700);font-weight:600}
+  .tag{display:inline-flex;align-items:center;font-size:10.5px;letter-spacing:.02em;padding:2px 8px;border-radius:10px;white-space:nowrap}
+  .tag-p1{background:var(--danger-100);color:var(--danger)}
+  .tag-p2{background:var(--warn-100);color:var(--warn)}
+  .tag-p3{background:var(--border);color:var(--muted)}
+  .tag-cat{border:1px solid var(--border);color:var(--muted)}
+  .task-right{display:flex;align-items:center;gap:6px;margin-left:auto}
+  .chev{font-size:15px;color:var(--muted);transform:rotate(0deg)}
+  .chev.open{transform:rotate(90deg)}
+  .steps-preview{padding:2px 0 16px 38px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--border)}
+  .step-line{display:flex;align-items:center;gap:9px;font-size:13px}
+  .step-line .checkbox{width:15px;height:15px}
+  .step-line .checkbox.checked::after{width:4px;height:7px}
+  .step-line .txt.done{text-decoration:line-through;opacity:.55}
+  .empty-state{padding:60px 10px;text-align:center;color:var(--muted);font-size:13.5px}
+  .composer{border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:10px;background:var(--surface)}
+  .composer input{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:14px;background:var(--surface-2)}
+  .composer .hint{font-size:10.5px;color:var(--muted);white-space:nowrap}
+  .detail{border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;display:flex;flex-direction:column}
+  .detail-empty{padding:40px 22px;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .detail-body{padding:18px 20px 30px;display:flex;flex-direction:column;gap:16px}
+  .detail-head{display:flex;align-items:center;gap:8px}
+  .detail-head .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent-700);font-weight:600}
+  .detail-title{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:21px;line-height:1.2;border:0;border-bottom:1px solid var(--border);padding:0 0 8px;width:100%;background:transparent;resize:none}
+  .field-grid{display:grid;grid-template-columns:82px 1fr;row-gap:10px;column-gap:10px;font-size:13px;align-items:center}
+  .field-grid label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .field-grid select,.field-grid input[type=date]{border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;background:var(--surface-2);width:100%}
+  .pillrow{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{border:1px solid var(--border);background:transparent;border-radius:14px;padding:4px 11px;font-size:12px}
+  .pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .pill.p1.active{background:var(--danger);border-color:var(--danger)}
+  .pill.p2.active{background:var(--warn);border-color:var(--warn)}
+  .steps-block{display:flex;flex-direction:column;gap:8px}
+  .steps-block .step-line .del{margin-left:auto;opacity:0;border:0;background:none;color:var(--muted);font-size:13px}
+  .steps-block .step-line:hover .del{opacity:1}
+  .steps-block .step-line:hover .del:hover{color:var(--danger)}
+  .add-step{border:1px dashed var(--border);border-radius:var(--radius);padding:6px 9px;font-size:13px;background:var(--surface-2)}
+  .notes{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:9px;font-size:13px;line-height:1.55;background:var(--surface-2);resize:vertical;min-height:80px}
+  .detail-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .detail-actions .btn{flex:1}
+  .icon-btn{border:0;background:none;color:var(--muted);padding:2px 4px}
+  .icon-btn:hover{color:var(--text)}
+  #importFile,#checklistFile{display:none}
+  #appSwitcher{position:fixed;bottom:16px;right:16px;z-index:500;display:flex;align-items:center;border:1px solid var(--border);border-radius:20px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-lg);touch-action:none}
+  #appSwitcher .switcher-grip{cursor:grab;padding:0 6px 0 10px;font-size:12px;line-height:1;color:var(--muted);user-select:none;display:flex;align-items:center;align-self:stretch}
+  #appSwitcher .switcher-grip:active{cursor:grabbing}
+  #appSwitcher.dragging{box-shadow:var(--shadow-lg),0 0 0 2px var(--accent);transition:none}
+  #appSwitcher .switch-btn{border:0;background:transparent;padding:7px 16px 7px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+  #appSwitcher .switch-btn:first-of-type{padding-left:10px}
+  #appSwitcher .switch-btn.active{background:var(--selected-bg);color:var(--text)}
+  #checklistsHost{display:none}
+  .matter-row .cl-badge{font-size:10px;font-weight:600;color:var(--accent-700);background:var(--accent-100);border-radius:8px;padding:2px 7px;border:0;cursor:pointer;flex:none}
+  .matter-row .cl-badge:hover{background:var(--accent);color:#fff}
+  @media print{ #appSwitcher{display:none !important} }
+  .modal-backdrop{position:fixed;inset:0;background:rgba(20,20,22,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal{width:min(440px,100%);background:var(--surface);border-radius:8px;box-shadow:var(--shadow-lg);padding:22px;display:flex;flex-direction:column;gap:14px}
+  .modal h3{font-size:19px}
+  .modal .field{display:flex;flex-direction:column;gap:5px}
+  .modal .field label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .modal select,.modal input[type=text]{border:1px solid var(--border);border-radius:var(--radius);padding:7px 9px;background:var(--surface-2);width:100%;font-size:13.5px}
+  .modal .summary{font-size:12.5px;color:var(--muted);line-height:1.5;background:var(--surface-2);border-radius:var(--radius);padding:9px 11px}
+  .modal .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+  .modal .hint-block{font-size:12px;color:var(--muted);line-height:1.5;background:var(--surface-2);border-radius:var(--radius);padding:9px 11px}
+  .cal-status{font-size:11.5px;color:var(--muted);line-height:1.4;padding:2px 2px 0}
+  .cal-status b{color:var(--text);font-weight:600}
+  .cal-row{display:flex;gap:6px}
+  .cal-row .btn{flex:1}
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+    .sidebar{display:none}
+    .detail{position:fixed;inset:0;z-index:20;border-left:0}
+    .detail-empty{display:none}
+  }
+  @media print{
+    .sidebar,.composer,.detail,.main-head-top .controls,.search{display:none !important}
+    .app{display:block;height:auto}
+    .main-head{border:0}
+    .task-right,.chev{display:none !important}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+<div id="appSwitcher">
+  <span class="switcher-grip" title="Drag to move">&#8942;&#8942;</span>
+  <button type="button" class="switch-btn active" data-app="tasks">Tasks</button>
+  <button type="button" class="switch-btn" data-app="checklists">Checklists</button>
+</div>
+
+<div id="tasksRoot">
+<div class="app" id="app"></div>
+</div>
+
+<template id="checklistsTemplate"><style>
+  :host{
+    --color-bg:#f5f5f3;
+    --color-surface:#ffffff;
+    --color-surface-2:#fafaf9;
+    --color-text:#1c1e21;
+    --color-text-muted:#6b6f76;
+    --color-accent:#4f6f8f;
+    --color-accent-600:#3f5a75;
+    --color-accent-700:#334a61;
+    --color-accent-800:#263c4f;
+    --color-selected-bg:#c7ddef;
+    --color-selected-border:#3f5a75;
+    --color-divider:rgba(29,31,32,.16);
+    --color-divider-strong:rgba(29,31,32,.30);
+    --n-100:#f5f5f8; --n-200:#e7e7ea; --n-300:#d4d4d7; --n-400:#b7b7ba;
+    --n-500:#98989b; --n-600:#7a7a7d; --n-700:#5d5d60; --n-800:#424244; --n-900:#2b2b2d;
+    --font-heading:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-display:Georgia,"Times New Roman",serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius-xs:3px;
+    --radius-sm:5px;
+    --radius-md:6px;
+    --radius-lg:8px;
+    --radius-full:999px;
+    --shadow-sm:0 1px 2px rgba(29,31,32,.07);
+    --shadow-md:0 4px 16px rgba(29,31,32,.09);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.45;}
+  button,input,select{font-family:inherit;}
+  button{transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease;}
+
+  /* ---- topbar ---- */
+  .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 22px;background:var(--color-bg);border-bottom:2px solid var(--color-text);flex-wrap:wrap;}
+  .brand{display:flex;flex-direction:column;line-height:1.15;}
+  .brand-name{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:.1px;}
+  .brand-sub{font-family:var(--font-heading);font-size:11px;color:var(--n-600);letter-spacing:.05em;text-transform:uppercase;display:flex;gap:4px;}
+  .brand-sub input{width:34px;border:none;background:transparent;font:inherit;color:inherit;}
+  .topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .view-toggle{display:inline-flex;border:1px solid var(--color-divider-strong);border-radius:var(--radius-sm);overflow:hidden;}
+  .view-toggle button{padding:7px 16px;font-family:var(--font-heading);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;border:none;border-right:1px solid var(--color-divider-strong);background:transparent;color:var(--color-text);cursor:pointer;}
+  .view-toggle button:last-child{border-right:none;}
+  .view-toggle button.active{background:var(--color-selected-bg);color:var(--color-text);}
+  .btn{font-family:var(--font-heading);font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:8px 16px;border:1px solid var(--n-400);border-radius:var(--radius-sm);background:transparent;color:var(--color-text);cursor:pointer;}
+  .btn-primary{background:var(--color-accent);border-color:var(--color-accent);color:#fff;box-shadow:var(--shadow-sm);}
+  .btn:hover{filter:brightness(0.96);}
+  .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .btn:active{transform:translateY(0);}
+
+  /* ---- shell ---- */
+  .shell{display:flex;align-items:flex-start;min-height:calc(100vh - 54px);}
+  .sidebar{width:288px;flex-shrink:0;border-right:1px solid var(--color-divider);padding:16px 14px;position:sticky;top:54px;max-height:calc(100vh - 54px);overflow-y:auto;}
+  .search-input{width:100%;padding:8px 12px;border:1px solid var(--color-divider-strong);border-radius:var(--radius-sm);background:var(--color-surface);font-size:13px;color:var(--color-text);margin-bottom:16px;}
+  .search-input::placeholder{color:var(--n-500);}
+  .nav-group{margin-bottom:16px;}
+  .nav-cat-label{font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--n-600);padding:0 6px 6px;}
+  .nav-type-label{font-family:var(--font-heading);font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--color-accent-700);padding:0 6px 6px;border-bottom:1px solid var(--color-divider);margin-bottom:8px;}
+  .nav-subcat-label{font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--n-500);padding:6px 6px 4px 10px;display:flex;align-items:center;}
+  .nav-item{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:8px 10px;border:none;border-radius:var(--radius-xs);background:transparent;font-size:13px;color:var(--color-text);cursor:pointer;line-height:1.3;margin-bottom:1px;}
+  .nav-item.nested{padding-left:20px;}
+  .nav-item:hover{background:color-mix(in srgb, var(--color-text) 6%, transparent);}
+  .nav-item.active{background:var(--color-selected-bg);color:var(--color-text);}
+  .nav-count{font-family:var(--font-heading);font-size:10.5px;color:var(--n-500);white-space:nowrap;flex-shrink:0;}
+  .nav-item.active .nav-count{color:var(--color-text-muted);}
+  .nav-item.hidden{display:none;}
+  .nav-empty{font-size:12px;color:var(--n-500);padding:6px 8px 14px;font-style:italic;line-height:1.5;}
+  .nav-link-dot{width:7px;height:7px;border-radius:50%;background:var(--color-accent-600);display:inline-block;margin-right:6px;flex-shrink:0;}
+  .btn-block{width:100%;margin-bottom:12px;}
+
+  .new-checklist-form{display:none;border:1px solid var(--color-divider-strong);border-radius:var(--radius-md);background:var(--color-surface);padding:14px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .new-checklist-form.open{display:block;}
+  .new-checklist-form label{display:block;font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--n-700);margin-bottom:10px;}
+  .new-checklist-form input[type="text"], .new-checklist-form input:not([type]), .new-checklist-form select{width:100%;margin-top:4px;padding:7px 9px;border:1px solid var(--color-divider-strong);border-radius:var(--radius-xs);background:var(--color-bg);font-family:var(--font-body);font-size:13px;color:var(--color-text);text-transform:none;letter-spacing:normal;font-weight:400;}
+  .new-checklist-form .nc-copy-row{display:flex;align-items:center;gap:7px;text-transform:none;letter-spacing:normal;font-weight:400;font-size:12px;color:var(--n-700);}
+  .new-checklist-form .nc-copy-row input{margin-top:0;width:auto;}
+  .new-checklist-form .nc-copy-row span{font-family:var(--font-body);}
+  .nc-actions{display:flex;gap:8px;margin-top:2px;}
+  .nc-actions .btn{flex:1;}
+
+  .main-wrap{flex:1;min-width:0;padding:30px 26px 80px;}
+  .main-inner{max-width:920px;margin:0 auto;}
+
+  /* ---- checklist header ---- */
+  .title-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px 24px;border-bottom:2px solid var(--color-text);padding-bottom:14px;margin-bottom:18px;}
+  h1.doc-title{font-family:var(--font-display);font-size:32px;font-weight:700;letter-spacing:-0.3px;border:none;background:transparent;color:var(--color-text);width:100%;max-width:600px;}
+  h1.doc-title:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .progress-badge{font-family:var(--font-heading);font-size:15px;font-weight:600;white-space:nowrap;}
+  .progress-badge b{color:var(--color-accent-700);font-size:19px;}
+
+  .link-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--n-600);padding:6px 0 10px;border-bottom:1px dotted var(--color-divider);margin-bottom:6px;}
+  .link-row .link-action{font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--color-accent-700);background:transparent;border:none;cursor:pointer;padding:2px 0;}
+  .link-row .link-action:hover{text-decoration:underline;}
+  .link-row .link-action.danger:hover{color:#a33b3b;}
+  .link-row select{font-size:11.5px;padding:4px 8px;border:1px solid var(--color-divider-strong);border-radius:var(--radius-xs);background:var(--color-surface);color:var(--color-text);}
+
+  .checklist-empty{display:none;max-width:560px;margin:60px auto 0;text-align:center;}
+  .checklist-empty h2{font-family:var(--font-heading);font-size:22px;font-weight:700;margin-bottom:12px;}
+  .checklist-empty p{font-size:13.5px;color:var(--n-600);line-height:1.6;}
+
+  #metaSection{margin-bottom:20px;}
+  .meta-grid{display:grid;grid-template-columns:repeat(5,1fr) auto;align-items:end;gap:18px;}
+  .meta-grid.hidden{display:none;}
+  .meta-field label{display:block;font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--n-700);margin-bottom:4px;}
+  .meta-field input{width:100%;border:none;border-bottom:1px solid var(--color-divider-strong);background:transparent;padding:5px 2px;font-size:14px;color:var(--color-text);}
+  .meta-field input:focus{outline:none;border-bottom-color:var(--color-accent);}
+  .meta-field input::placeholder{color:var(--n-400);}
+  .meta-field select{width:100%;border:none;border-bottom:1px solid var(--color-divider-strong);background:transparent;padding:5px 2px;font-size:14px;color:var(--color-text);font-family:inherit;}
+  .meta-field select:focus{outline:none;border-bottom-color:var(--color-accent);}
+  .meta-hide-link, .meta-add-link{font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--n-500);background:transparent;border:none;cursor:pointer;padding:5px 0;white-space:nowrap;}
+  .meta-hide-link:hover, .meta-add-link:hover{color:var(--color-accent-700);text-decoration:underline;}
+  .meta-add-link{display:none;}
+  .meta-add-link.visible{display:inline-block;}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--color-divider);}
+  .toolbar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .tb-label{font-family:var(--font-heading);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--n-600);margin-right:2px;}
+  .seg{display:inline-flex;border:1px solid var(--n-400);border-radius:var(--radius-sm);overflow:hidden;}
+  .seg-opt{font-family:var(--font-heading);font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:6px 13px;border:none;border-right:1px solid var(--n-400);background:transparent;color:var(--color-text);cursor:pointer;}
+  .seg-opt:last-child{border-right:none;}
+  .seg-opt.active{background:var(--color-selected-bg);color:var(--color-text);}
+  .pri-filters{display:inline-flex;gap:6px;flex-wrap:wrap;}
+  .toggle-chip{font-family:var(--font-heading);font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:6px 14px;border:1px solid var(--n-400);border-radius:var(--radius-full);background:transparent;color:var(--color-text);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .toggle-chip .dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--n-500);display:inline-block;}
+  .toggle-chip[data-pri="H"] .dot{border-color:var(--color-accent-700);}
+  .toggle-chip[data-pri="M"] .dot{border-color:var(--color-accent-600);}
+  .toggle-chip[data-pri="L"] .dot{border-color:var(--n-400);}
+  .toggle-chip.active{border-color:var(--color-accent-700);color:var(--color-accent-700);background:color-mix(in srgb, var(--color-accent-700) 8%, transparent);}
+  .toggle-chip.active .dot{background:var(--color-accent-700);border-color:var(--color-accent-700);}
+
+  /* ---- sections ---- */
+  #sections{display:grid;grid-template-columns:1fr;gap:22px;}
+  #sections.two-col{grid-template-columns:1fr 1fr;align-items:start;}
+  .phase{border:1px solid var(--color-divider);border-radius:var(--radius-lg);background:var(--color-surface);padding:18px 20px 8px;box-shadow:var(--shadow-sm);}
+
+  .phase-head{display:flex;align-items:baseline;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--color-text);margin-bottom:6px;}
+  .phase-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:.01em;text-transform:uppercase;flex:1;border:none;background:transparent;color:var(--color-text);}
+  .phase-title:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .phase-count{font-family:var(--font-heading);font-size:12px;letter-spacing:.05em;color:var(--n-600);white-space:nowrap;}
+  .add-section{margin-top:4px;font-family:var(--font-heading);font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--color-accent-700);background:transparent;border:1.5px dashed var(--n-400);border-radius:var(--radius-sm);cursor:pointer;padding:10px 14px;width:100%;text-align:center;}
+  .add-section:hover{border-color:var(--color-accent-700);background:color-mix(in srgb, var(--color-accent-700) 5%, transparent);}
+
+  .rows{padding:2px 0 12px;}
+  .row{display:grid;grid-template-columns:20px 1fr 44px 26px 22px 22px;gap:0 10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--color-divider);}
+  .row:last-child{border-bottom:none;}
+  .row.hidden{display:none;}
+  .row.done .item-text{color:var(--n-600);text-decoration:line-through;text-decoration-color:var(--n-400);}
+
+  .check{grid-column:1;grid-row:1;width:20px;height:20px;border-radius:var(--radius-full);border:1.5px solid var(--n-500);background:transparent;cursor:pointer;position:relative;flex-shrink:0;margin-top:1px;}
+  .check.checked{background:var(--color-accent-700);border-color:var(--color-accent-700);}
+  .check.checked::after{content:"";position:absolute;left:4px;top:2px;width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);}
+
+  .row.type-yesno{grid-template-columns:48px 1fr 44px 22px 22px;}
+  .yn-toggle{grid-column:1;grid-row:1;display:flex;gap:3px;margin-top:1px;}
+  .yn-btn{width:21px;height:20px;padding:0;border-radius:var(--radius-full);font-family:var(--font-heading);font-size:10.5px;font-weight:700;letter-spacing:.02em;border:1.5px solid var(--n-500);background:transparent;color:var(--n-700);cursor:pointer;line-height:1;}
+  .yn-btn.yes.active{background:var(--color-accent-700);border-color:var(--color-accent-700);color:#fff;}
+  .yn-btn.no.active{background:var(--n-600);border-color:var(--n-600);color:#fff;}
+
+  .content-wrap{grid-column:2;grid-row:1;min-width:0;}
+  .item-text{border:none;background:transparent;font:inherit;font-size:14.5px;color:var(--color-text);width:100%;padding:1px 0;}
+  .item-text:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .item-desc{display:block;width:100%;border:none;border-bottom:1px dotted transparent;background:transparent;font-family:inherit;font-size:12.5px;color:var(--n-600);font-style:italic;line-height:1.4;margin-top:3px;padding:0 0 2px;resize:none;overflow:hidden;}
+  .item-desc:hover{border-bottom-color:var(--color-divider);}
+  .item-desc:focus{outline:none;border-bottom-color:var(--color-accent);}
+  .item-type-toggle{display:block;font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--n-400);background:transparent;border:none;cursor:pointer;padding:3px 0 0;}
+  .item-type-toggle:hover{color:var(--color-accent-700);text-decoration:underline;}
+
+  .priority{grid-column:3;grid-row:1;width:42px;text-align:center;font-family:var(--font-heading);font-size:11.5px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-full);padding:3px 0;cursor:pointer;align-self:start;margin-top:1px;}
+  .priority[data-pri="H"]{background:var(--color-accent-700);color:#fff;border:1px solid var(--color-accent-700);}
+  .priority[data-pri="M"]{background:transparent;color:var(--color-accent-800);border:1px solid var(--color-accent-600);}
+  .priority[data-pri="L"]{background:transparent;color:var(--n-700);border:1px solid var(--n-400);}
+
+  .sub-btn{grid-column:5;grid-row:1;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:transparent;color:var(--n-400);font-size:15px;line-height:1;cursor:pointer;padding:0;margin-top:1px;}
+  .sub-btn:hover{color:var(--color-accent-700);background:color-mix(in srgb, var(--color-accent-700) 10%, transparent);}
+  .sub-btn.has-subs{color:var(--color-accent-700);}
+
+  .note-line{grid-column:2 / span 5;grid-row:2;border:none;border-bottom:1px dotted var(--color-divider);background:transparent;font:inherit;font-size:12.5px;color:var(--n-700);padding:5px 0 3px;margin-top:4px;width:100%;}
+  .note-line::placeholder{color:var(--n-400);}
+  .note-line:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+
+  .subsection{grid-column:1 / -1;grid-row:3;margin:6px 0 2px 32px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-surface-2);padding:10px 14px 12px;}
+  .subsection-head{display:flex;align-items:baseline;gap:10px;padding-bottom:6px;margin-bottom:2px;border-bottom:1px solid var(--color-divider-strong);}
+  .subsection-title{flex:1;min-width:0;border:none;background:transparent;font-family:var(--font-heading);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text);padding:2px 0;}
+  .subsection-title:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .subsection-title::placeholder{color:var(--n-500);}
+  .subsection-count{font-family:var(--font-heading);font-size:10.5px;color:var(--n-600);white-space:nowrap;}
+
+  .sub-row{display:grid;grid-template-columns:16px 1fr 34px 18px;gap:0 8px;align-items:start;padding:7px 0;border-bottom:1px solid var(--color-divider);}
+  .sub-row:last-child{border-bottom:none;}
+  .sub-row.hidden{display:none;}
+  .sub-check{grid-column:1;grid-row:1;width:16px;height:16px;border-radius:var(--radius-full);border:1px solid var(--n-500);background:transparent;cursor:pointer;position:relative;flex-shrink:0;margin-top:1px;}
+  .sub-check.checked{background:var(--color-accent-600);border-color:var(--color-accent-600);}
+  .sub-check.checked::after{content:"";position:absolute;left:3px;top:1px;width:7px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);}
+  .sub-text{grid-column:2;grid-row:1;border:none;background:transparent;font:inherit;font-size:13px;color:var(--color-text);width:100%;padding:1px 0;}
+  .sub-text:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .sub-row.done .sub-text{color:var(--n-600);text-decoration:line-through;text-decoration-color:var(--n-400);}
+  .sub-priority{grid-column:3;grid-row:1;width:32px;text-align:center;font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.02em;border-radius:var(--radius-full);padding:2px 0;cursor:pointer;align-self:start;margin-top:1px;}
+  .sub-priority[data-pri="H"]{background:var(--color-accent-700);color:#fff;border:1px solid var(--color-accent-700);}
+  .sub-priority[data-pri="M"]{background:transparent;color:var(--color-accent-800);border:1px solid var(--color-accent-600);}
+  .sub-priority[data-pri="L"]{background:transparent;color:var(--n-700);border:1px solid var(--n-400);}
+  .sub-note-line{grid-column:2 / span 2;grid-row:2;border:none;border-bottom:1px dotted var(--color-divider);background:transparent;font:inherit;font-size:11.5px;color:var(--n-700);padding:4px 0 2px;margin-top:2px;width:100%;}
+  .sub-note-line::placeholder{color:var(--n-400);}
+  .sub-note-line:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .add-sub-item{margin-top:4px;font-family:var(--font-heading);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--color-accent-600);background:transparent;border:none;cursor:pointer;padding:3px 0;}
+  .add-sub-item:hover{text-decoration:underline;}
+
+  .add-item{margin:6px 0 8px;font-family:var(--font-heading);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--color-accent-700);background:transparent;border:none;cursor:pointer;padding:4px 0;}
+  .add-item:hover{text-decoration:underline;}
+
+  .tpl-picker{font-family:var(--font-heading);font-size:11px;padding:5px 8px;border:1px solid var(--color-divider-strong);border-radius:var(--radius-xs);background:var(--color-surface);color:var(--n-700);text-transform:none;letter-spacing:normal;}
+  .add-row-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 8px;}
+  .add-row-group .add-item, .add-row-group .add-sub-item{margin:0;}
+
+  /* ---- template editor rows (standard sections / subsections library) ---- */
+  .tpl-entry{margin-bottom:2px;}
+  .tpl-row{display:grid;grid-template-columns:1fr 44px 22px;gap:0 10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--color-divider);}
+  .tpl-entry:last-child > .tpl-row{border-bottom:none;}
+  .tpl-content-wrap{grid-column:1;min-width:0;}
+  .tpl-text{display:block;border:none;background:transparent;font:inherit;font-size:14.5px;color:var(--color-text);width:100%;padding:1px 0;}
+  .tpl-text:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .tpl-desc-line{display:block;border:none;border-bottom:1px dotted var(--color-divider);background:transparent;font:inherit;font-size:12.5px;line-height:1.5;color:var(--n-700);padding:4px 0 2px;margin-top:3px;width:100%;resize:none;overflow:hidden;}
+  .tpl-desc-line::placeholder{color:var(--n-400);}
+  .tpl-desc-line:focus{outline:none;border-bottom:1px solid var(--color-accent);}
+  .tpl-priority{grid-column:2;width:42px;text-align:center;font-family:var(--font-heading);font-size:11.5px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-full);padding:3px 0;cursor:pointer;align-self:start;margin-top:1px;}
+  .tpl-priority[data-pri="H"]{background:var(--color-accent-700);color:#fff;border:1px solid var(--color-accent-700);}
+  .tpl-priority[data-pri="M"]{background:transparent;color:var(--color-accent-800);border:1px solid var(--color-accent-600);}
+  .tpl-priority[data-pri="L"]{background:transparent;color:var(--n-700);border:1px solid var(--n-400);}
+  .tpl-entry .subsection{margin-left:0;margin-bottom:12px;}
+
+  /* shared icon-button treatment for every "remove" control across the app */
+  .del-btn, .tpl-del, .sub-del, .section-del, .instr-item-del, .instr-section-del{
+    width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+    border:none;background:transparent;color:var(--n-400);font-size:15px;line-height:1;
+    cursor:pointer;padding:0;border-radius:50%;
+  }
+  .del-btn:hover, .tpl-del:hover, .sub-del:hover, .section-del:hover, .instr-item-del:hover, .instr-section-del:hover{
+    background:rgba(163,59,59,.12);color:#a33b3b;
+  }
+  .del-btn{grid-column:6;grid-row:1;width:22px;height:22px;font-size:16px;}
+  .tpl-del{grid-column:3;width:22px;height:22px;font-size:16px;}
+  .sub-del{grid-column:4;grid-row:1;width:18px;height:18px;font-size:13px;}
+
+  /* compact layout */
+  .main-wrap.compact .item-desc,
+  .main-wrap.compact .item-type-toggle,
+  .main-wrap.compact .note-line{display:none;}
+  .main-wrap.compact .row{padding:6px 0;}
+  .main-wrap.compact .subsection{margin-left:28px;}
+  .main-wrap.compact .sub-note-line{display:none;}
+
+  /* ---- instructions view: editable library, styled like a OneNote notebook page ---- */
+  #instructionsView{display:none;--onp-color:#416180;}
+  #instructionEditor{display:none;}
+  #templatesView{display:none;}
+  #templateEditor{display:none;}
+
+  #instructionsView, #instructionsView input, #instructionsView select{
+    font-family:"Segoe UI","Segoe UI Variable",Calibri,ui-sans-serif,system-ui,sans-serif;
+  }
+
+  .onp-page{
+    background:#fffdf8;
+    border:1px solid var(--color-divider);
+    border-radius:var(--radius-lg);
+    box-shadow:0 1px 3px rgba(29,31,32,.08), 0 12px 30px rgba(29,31,32,.06);
+    padding:30px 42px 46px;
+  }
+
+  .onp-category-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+  .onp-category-swatch{width:16px;height:16px;border-radius:50%;background:var(--onp-color);border:1px solid rgba(0,0,0,.15);padding:0;cursor:pointer;flex-shrink:0;}
+  .onp-category-swatch:disabled{cursor:default;opacity:.4;}
+  .onp-category-select{border:1px solid var(--color-divider-strong);border-radius:var(--radius-xs);background:var(--color-surface);font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);padding:5px 10px;max-width:100%;}
+
+  #instrCategoryForm{max-width:340px;}
+  .color-picker-row{display:flex;align-items:center;gap:10px;margin-top:4px;}
+  .color-picker-row input[type="color"]{width:36px;height:28px;padding:0;border:1px solid var(--color-divider-strong);border-radius:var(--radius-xs);background:none;cursor:pointer;}
+  .color-swatches{display:flex;flex-wrap:wrap;gap:6px;}
+  .color-swatch-btn{width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,0,0,.15);cursor:pointer;padding:0;}
+  .color-swatch-btn:hover{outline:2px solid var(--color-text);outline-offset:1px;}
+
+  .onp-title{display:block;width:100%;border:none;background:transparent;font-size:30px;font-weight:700;color:var(--color-text);letter-spacing:-.01em;border-bottom:2px solid var(--onp-color);padding-bottom:14px;margin-bottom:20px;}
+  .onp-title:focus{outline:none;}
+  .onp-title::placeholder{color:var(--n-400);font-weight:600;}
+
+  .instr-section{margin-bottom:26px;}
+  .instr-section-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .instr-title{flex:1;min-width:0;border:none;background:transparent;font-weight:700;font-size:17px;color:var(--onp-color);text-transform:none;letter-spacing:normal;border-left:4px solid var(--onp-color);border-radius:3px;padding:2px 0 2px 12px;}
+  .instr-title:focus{outline:none;}
+  .instr-title::placeholder{color:var(--n-400);}
+
+  .instr-item{display:flex;gap:12px;padding:8px 0;border-bottom:1px dashed var(--color-divider);align-items:flex-start;}
+  .instr-item:last-child{border-bottom:none;}
+  .instr-num{color:var(--onp-color);font-weight:700;font-size:13px;flex-shrink:0;width:24px;margin-top:3px;}
+  .instr-body{min-width:0;flex:1;}
+  .instr-text-input{display:block;width:100%;border:none;background:transparent;font-size:14.5px;line-height:1.55;color:var(--color-text);font-family:inherit;padding:2px 0;}
+  .instr-text-input:focus{outline:none;border-bottom:1px solid var(--onp-color);}
+  .instr-text-input::placeholder{color:var(--n-400);}
+  .instr-desc-input{display:block;width:100%;border:none;border-bottom:1px dotted var(--color-divider);background:transparent;font-size:12.5px;font-style:italic;color:var(--n-600);font-family:inherit;line-height:1.5;padding:3px 0;margin-top:3px;resize:none;overflow:hidden;}
+  .instr-desc-input::placeholder{color:var(--n-400);font-style:italic;}
+  .instr-desc-input:focus{outline:none;border-bottom:1px solid var(--onp-color);}
+  .instr-pri{flex-shrink:0;width:38px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-full);padding:3px 0;margin-top:2px;cursor:pointer;font-family:inherit;}
+  .instr-pri[data-pri="H"]{background:var(--onp-color);color:#fff;border:1px solid var(--onp-color);}
+  .instr-pri[data-pri="M"]{background:transparent;color:var(--onp-color);border:1px solid var(--onp-color);}
+  .instr-pri[data-pri="L"]{background:transparent;color:var(--n-600);border:1px solid var(--n-400);}
+
+  .instr-add-item{display:block;margin-top:8px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);background:transparent;border:none;cursor:pointer;padding:4px 0;font-family:inherit;}
+  .instr-add-item:hover{text-decoration:underline;}
+  .instr-add-section{display:block;margin-top:6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);background:transparent;border:1.5px dashed var(--n-400);border-radius:var(--radius-sm);cursor:pointer;padding:10px 14px;width:100%;text-align:center;font-family:inherit;}
+  .instr-add-section:hover{border-color:var(--onp-color);}
+
+  @media (max-width:900px){
+    .onp-page{padding:24px 22px 32px;}
+  }
+
+  footer.app-footer{margin-top:36px;text-align:center;font-size:11px;color:var(--n-500);}
+
+  @media (max-width:900px){
+    .sidebar{display:none;}
+    .meta-grid{grid-template-columns:1fr 1fr;}
+    .meta-hide-link{grid-column:1 / -1;justify-self:start;}
+    #sections.two-col{grid-template-columns:1fr;}
+  }
+
+  @media print{
+    .topbar, .sidebar, .toolbar, .add-item, .del-btn, .sub-btn, .add-sub-item, .sub-del, .search-input, .meta-hide-link, .meta-add-link, .link-row .link-action, .link-row select, .section-del, .add-section, .item-type-toggle, .tpl-del, .tpl-picker{display:none !important;}
+    body{background:#fff;}
+    .shell{display:block;}
+    .main-wrap{padding:0;}
+    #sections{grid-template-columns:1fr 1fr !important;}
+    .phase{break-inside:avoid;border:1px solid #999;}
+    a[href]{color:inherit;text-decoration:none;}
+  }
+.task-btn{grid-column:4;grid-row:1;border:none;background:transparent;color:var(--n-500);font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;padding:0;font-family:var(--font-heading);white-space:nowrap;justify-self:start;}
+.task-btn:hover{color:var(--color-accent-700);}
+.task-btn.linked{color:var(--color-accent-700);}
+</style>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-name">McRoberts Law</span>
+    <span class="brand-sub">Training folder outline &middot; Rev. <input id="revInput" value="1.0"></span>
+  </div>
+  <div class="topbar-actions">
+    <div class="view-toggle">
+      <button data-view="instructions" class="active">Instructions</button>
+      <button data-view="checklist">Checklist</button>
+      <button data-view="templates">Templates</button>
+    </div>
+    <button class="btn" id="printBtn">Print</button>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <input class="search-input" id="searchInput" placeholder="Search" spellcheck="false">
+    <button class="btn btn-primary btn-block" id="newInstructionTopicBtn" type="button">+ New instruction topic</button>
+    <button class="btn btn-primary btn-block" id="newChecklistBtn" type="button">+ New checklist</button>
+    <div id="newChecklistForm" class="new-checklist-form">
+      <label>Title
+        <input id="ncTitle" placeholder="e.g. Smith v. Smith — Divorce">
+      </label>
+      <label>Link the first section to an instruction topic (optional)
+        <select id="ncLink"></select>
+      </label>
+      <label class="nc-copy-row">
+        <input type="checkbox" id="ncCopySteps" disabled>
+        <span>Copy steps from that instruction topic</span>
+      </label>
+      <div class="nc-actions">
+        <button class="btn btn-primary" id="ncCreateBtn" type="button">Create</button>
+        <button class="btn" id="ncCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+    <button class="btn btn-block" id="loadChecklistFileBtn" type="button">Load a checklist file</button>
+    <input type="file" id="loadChecklistFileInput" accept="application/json" style="display:none;">
+    <button class="btn btn-primary btn-block" id="newSectionTemplateBtn" type="button">+ New section template</button>
+    <button class="btn btn-block" id="newSubsectionTemplateBtn" type="button">+ New subsection template</button>
+    <div id="navGroups"></div>
+  </aside>
+
+  <main class="main-wrap">
+    <div class="main-inner">
+
+      <div id="checklistView">
+
+        <div id="checklistEmpty" class="checklist-empty">
+          <h2>No checklist selected</h2>
+          <p>Checklists are separate from the instructions library and are never created automatically. Use <b>+ New checklist</b> in the sidebar to start one. Each section of a checklist can be linked to an instruction topic individually, whenever you choose to link it — nothing links itself.</p>
+        </div>
+
+        <div id="checklistEditor">
+          <div class="title-row">
+            <h1 class="doc-title" id="docTitle" contenteditable="true" spellcheck="false"></h1>
+            <div class="progress-badge"><b id="progressDone">0</b> / <span id="progressTotal">0</span> complete</div>
+          </div>
+
+          <div id="metaSection">
+            <div class="meta-grid" id="metaGrid">
+              <div class="meta-field"><label>Matter</label><select id="metaMatterLink"></select></div>
+              <div class="meta-field"><label>Client / matter</label><input id="metaClient" placeholder="Last, First"></div>
+              <div class="meta-field"><label>Case number</label><input id="metaCaseNumber"></div>
+              <div class="meta-field"><label>Staff</label><input id="metaStaff" placeholder="Initials"></div>
+              <div class="meta-field"><label>Date</label><input id="metaDate" type="date"></div>
+              <button class="meta-hide-link" id="metaHideBtn" type="button">Hide these fields</button>
+            </div>
+            <button class="meta-add-link" id="metaShowBtn" type="button">+ Add client / matter, case number, staff, date</button>
+          </div>
+
+          <div class="toolbar">
+            <div class="toolbar-group">
+              <span class="tb-label">Layout</span>
+              <div class="seg">
+                <button class="seg-opt active" data-layout="one">One column</button>
+                <button class="seg-opt" data-layout="two">Two columns</button>
+                <button class="seg-opt" data-layout="compact">Compact</button>
+              </div>
+              <span class="tb-label" style="margin-left:6px;">Priority</span>
+              <div class="pri-filters" id="priFilters">
+                <button class="toggle-chip" data-pri="H"><span class="dot"></span>High</button>
+                <button class="toggle-chip" data-pri="M"><span class="dot"></span>Medium</button>
+                <button class="toggle-chip" data-pri="L"><span class="dot"></span>Low</button>
+              </div>
+            </div>
+            <div class="toolbar-group">
+              <button class="btn" id="saveChecklistFileBtn">Save this checklist</button>
+              <button class="btn" id="resetBtn">Reset this list</button>
+              <button class="btn" id="deleteChecklistBtn">Delete checklist</button>
+            </div>
+          </div>
+
+          <div id="sections"></div>
+        </div>
+      </div>
+
+      <div id="instructionsView">
+
+        <div id="instructionEmpty" class="checklist-empty">
+          <h2>No instruction topic selected</h2>
+          <p>Use <b>+ New instruction topic</b> in the sidebar to start building your library. It's separate from checklists — link a checklist section to a topic whenever you want to, nothing links itself.</p>
+        </div>
+
+        <div id="instructionEditor">
+          <div class="onp-page">
+            <div class="onp-category-row">
+              <button type="button" class="onp-category-swatch" id="instrCategorySwatch" title="Edit this category's name and color"></button>
+              <select class="onp-category-select" id="instrCategorySelect"></select>
+            </div>
+
+            <div id="instrCategoryForm" class="new-checklist-form">
+              <label>Category name
+                <input id="catFormName" placeholder="e.g. Procedures">
+              </label>
+              <label>Color
+                <div class="color-picker-row">
+                  <input type="color" id="catFormColorInput" value="#416180">
+                  <div class="color-swatches" id="catFormSwatches"></div>
+                </div>
+              </label>
+              <div class="nc-actions">
+                <button class="btn btn-primary" id="catFormSaveBtn" type="button">Save</button>
+                <button class="btn" id="catFormCancelBtn" type="button">Cancel</button>
+              </div>
+            </div>
+
+            <input class="onp-title" id="instrTitleInput" placeholder="Topic title" spellcheck="false">
+            <div class="toolbar" style="margin:0 0 22px;padding-bottom:0;border-bottom:none;">
+              <div class="toolbar-group"></div>
+              <div class="toolbar-group">
+                <button class="btn" id="deleteInstructionBtn">Delete topic</button>
+              </div>
+            </div>
+            <div id="instrSections"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="templatesView">
+        <div class="title-row">
+          <h2 class="doc-title" style="font-size:28px;">Templates</h2>
+        </div>
+        <p class="instr-note">Build reusable standard sections and standard subsections here. Pull them into any checklist from its own "+ Add section from template" or "+ Use a subsection template" controls — nothing is added automatically.</p>
+
+        <div id="templateEmpty" class="checklist-empty">
+          <h2>No template selected</h2>
+          <p>Use <b>+ New section template</b> or <b>+ New subsection template</b> in the sidebar to start one.</p>
+        </div>
+
+        <div id="templateEditor">
+          <div class="title-row">
+            <span class="tb-label" id="templateTypeLabel">Section template</span>
+          </div>
+          <div class="title-row" style="border-bottom:none;padding-bottom:0;margin-bottom:8px;">
+            <input class="doc-title" id="templateTitle" style="font-size:24px;" spellcheck="false">
+          </div>
+          <div class="meta-field" style="max-width:280px;margin-bottom:18px;">
+            <label>Category</label>
+            <input id="templateCategory" list="templateCategoryOptions" placeholder="e.g. Intake, Closing (optional)">
+            <datalist id="templateCategoryOptions"></datalist>
+          </div>
+          <div class="toolbar">
+            <div class="toolbar-group"></div>
+            <div class="toolbar-group">
+              <button class="btn" id="deleteTemplateBtn">Delete template</button>
+            </div>
+          </div>
+          <div id="templateItemsWrap"></div>
+        </div>
+      </div>
+
+      <footer class="app-footer">Training Checklists &mdash; every field is editable. Progress is saved automatically in this browser, per checklist.</footer>
+    </div>
+  </main>
+</div>
+</template>
+<div id="checklistsHost"></div>
+
+<script>
+(function(){
+"use strict";
+const STORAGE_KEY = "docket.attorney.v1";
+const CATEGORIES = ["Court Deadline","Filing","Discovery","SOL","Client","Billing","Internal","Checklist"];
+const todayISO = () => new Date().toISOString().slice(0,10);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      const parsed = JSON.parse(raw);
+      parsed.msftSetupOpen = false;
+      parsed.pendingImport = null;
+      return parsed;
+    }
+  }catch(e){ console.warn("Failed to load saved docket data:", e); }
+  const m1 = uid(), m2 = uid();
+  return {
+    matters: [
+      { id: m1, name: "Smith v. Jones", number: "24-CV-1187" },
+      { id: m2, name: "Estate of Whitfield", number: "" }
+    ],
+    tasks: [
+      { id: uid(), title: "File answer to complaint", matterId: m1, category: "Filing", priority: "P1",
+        due: todayISO(), recur: null, notes: "Confirm service date before calculating the response deadline.",
+        steps: [{id:uid(),text:"Draft answer",done:true},{id:uid(),text:"Client review",done:false},{id:uid(),text:"E-file",done:false}],
+        done: false, order: 0 },
+      { id: uid(), title: "Statute of limitations — verify filing deadline", matterId: m1, category: "SOL", priority: "P1",
+        due: todayISO(), recur: null, notes: "", steps: [], done: false, order: 1 },
+      { id: uid(), title: "Send engagement letter", matterId: m2, category: "Client", priority: "P2",
+        due: null, recur: null, notes: "", steps: [], done: false, order: 2 }
+    ],
+    filter: "today", matterFilter: null, sort: "due", query: "", selectedId: null
+  };
+}
+
+let state = loadState();
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function setState(patch){ Object.assign(state, typeof patch === "function" ? patch(state) : patch); save(); render(); }
+
+function findTask(id){ return state.tasks.find(t => t.id === id); }
+function patchTask(id, fn){
+  state.tasks = state.tasks.map(t => t.id === id ? Object.assign({}, t, fn(t)) : t);
+  save(); render();
+  if (msftIsConnected()){ const t = findTask(id); if (t) syncTaskToCalendar(t); }
+}
+function matterName(id){ const m = state.matters.find(m => m.id === id); return m ? m.name : "No matter"; }
+
+function fmtDue(dueISO){
+  if (!dueISO) return "No date";
+  const d = new Date(dueISO + "T00:00:00");
+  const t = new Date(todayISO() + "T00:00:00");
+  const diffDays = Math.round((d - t) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays === -1) return "Yesterday";
+  if (diffDays < 0) return Math.abs(diffDays) + " day" + (diffDays === -1 ? "" : "s") + " overdue";
+  if (diffDays > 0 && diffDays <= 6) return d.toLocaleDateString(undefined,{weekday:"long"});
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year: d.getFullYear() !== t.getFullYear() ? "numeric" : undefined});
+}
+function isOverdue(t){ return !!t.due && !t.done && t.due < todayISO(); }
+function isToday(t){ return !!t.due && t.due === todayISO(); }
+
+function addDays(iso, n){
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+
+function parseComposer(raw){
+  let title = raw, matterId = state.matterFilter, priority = "P3", due = null;
+  const mm = title.match(/#(\S+)/);
+  if (mm){
+    const key = mm[1].toLowerCase();
+    const hit = state.matters.find(m => m.name.toLowerCase().replace(/\s+/g,"").startsWith(key));
+    if (hit) matterId = hit.id;
+    else {
+      const nm = { id: uid(), name: mm[1], number: "" };
+      state.matters.push(nm);
+      matterId = nm.id;
+    }
+    title = title.replace(mm[0], "").trim();
+  }
+  const pm = title.match(/!p([123])/i);
+  if (pm){ priority = "P" + pm[1]; title = title.replace(pm[0], "").trim(); }
+  const dm = title.match(/@(\S+)/);
+  if (dm){
+    const v = dm[1].toLowerCase();
+    if (v === "today") due = todayISO();
+    else if (v === "tomorrow") due = addDays(todayISO(), 1);
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) due = v;
+    else {
+      const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+      const idx = days.findIndex(d => d.startsWith(v));
+      if (idx >= 0){
+        const t = new Date(todayISO() + "T00:00:00");
+        let diff = (idx - t.getDay() + 7) % 7;
+        if (diff === 0) diff = 7;
+        due = addDays(todayISO(), diff);
+      }
+    }
+    title = title.replace(dm[0], "").trim();
+  }
+  return { title, matterId, priority, due };
+}
+
+function addTask(raw){
+  const trimmed = raw.trim();
+  if (!trimmed) return;
+  const parsed = parseComposer(trimmed);
+  if (!parsed.title) return;
+  const task = {
+    id: uid(), title: parsed.title, matterId: parsed.matterId, category: "Internal",
+    priority: parsed.priority, due: parsed.due, recur: null, notes: "", steps: [],
+    done: false, order: -Date.now()
+  };
+  state.tasks = [task].concat(state.tasks);
+  state.newTitle = "";
+  state.selectedId = task.id;
+  save(); render();
+  if (msftIsConnected()) syncTaskToCalendar(task);
+}
+
+function deleteTask(id){
+  const existing = findTask(id);
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  if (state.selectedId === id) state.selectedId = null;
+  save(); render();
+  if (existing && existing.graphEventId && msftIsConnected()){
+    graphDeleteEvent(existing.graphEventId).catch(e => console.warn("Calendar delete failed", e));
+  }
+}
+
+const CHECKLIST_PRIORITY_MAP = { H: "P1", M: "P2", L: "P3" };
+
+/* ---- Microsoft Calendar sync ----
+   Requires the page to be hosted at a real https:// address (not a local
+   file) with that exact address registered as a redirect URI on an Azure /
+   Entra ID app registration granting the Calendars.ReadWrite Graph scope.
+   See the in-app "Connect Microsoft Calendar" setup dialog for the Client ID
+   field this reads from. Nothing here runs until the user opts in. */
+const MSAL_CDN_URL = "https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js";
+const MSFT_CONFIG_KEY = "docket.msftConfig";
+const MSFT_SCOPES = ["Calendars.ReadWrite"];
+
+let msalApp = null;
+let msalLoadPromise = null;
+let msftAccount = null;
+let msftBusy = false;
+let msftLastError = "";
+let msftLastSyncAt = null;
+
+function getMsftConfig(){
+  try{ return JSON.parse(localStorage.getItem(MSFT_CONFIG_KEY)) || null; }catch(e){ return null; }
+}
+function saveMsftConfig(clientId, tenantId){
+  localStorage.setItem(MSFT_CONFIG_KEY, JSON.stringify({ clientId: clientId.trim(), tenantId: (tenantId || "common").trim() }));
+}
+function msftIsConfigured(){ const c = getMsftConfig(); return !!(c && c.clientId); }
+function msftIsConnected(){ return !!msftAccount; }
+
+function loadMsalScript(){
+  if (window.msal) return Promise.resolve();
+  if (msalLoadPromise) return msalLoadPromise;
+  msalLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = MSAL_CDN_URL;
+    s.onload = () => resolve();
+    s.onerror = () => { msalLoadPromise = null; reject(new Error("Could not load the Microsoft sign-in library — check your internet connection.")); };
+    document.head.appendChild(s);
+  });
+  return msalLoadPromise;
+}
+
+async function ensureMsalApp(){
+  const cfg = getMsftConfig();
+  if (!cfg || !cfg.clientId) throw new Error("Microsoft Calendar isn't set up yet — add your Client ID first.");
+  await loadMsalScript();
+  if (!msalApp){
+    const redirectUri = window.location.origin + window.location.pathname;
+    msalApp = new window.msal.PublicClientApplication({
+      auth: {
+        clientId: cfg.clientId,
+        authority: "https://login.microsoftonline.com/" + (cfg.tenantId || "common"),
+        redirectUri: redirectUri
+      },
+      cache: { cacheLocation: "localStorage" }
+    });
+    if (typeof msalApp.initialize === "function") await msalApp.initialize();
+    const accounts = msalApp.getAllAccounts();
+    if (accounts.length) msftAccount = accounts[0];
+  }
+  return msalApp;
+}
+
+async function connectMicrosoft(){
+  msftBusy = true; msftLastError = ""; render();
+  try{
+    const app = await ensureMsalApp();
+    const result = await app.loginPopup({ scopes: MSFT_SCOPES });
+    msftAccount = result.account;
+  }catch(e){
+    const code = e && e.errorCode ? e.errorCode : "";
+    if (code.indexOf("popup") >= 0 || code === "empty_window_error" || code === "user_cancelled"){
+      msftLastError = "Your browser blocked or closed the Microsoft sign-in popup. Allow popups for this site, then click “Sign in to Microsoft” again.";
+    } else {
+      msftLastError = e && e.message ? e.message : String(e);
+    }
+  }
+  msftBusy = false; render();
+}
+
+async function disconnectMicrosoft(){
+  if (msalApp && msftAccount){
+    try{ await msalApp.logoutPopup({ account: msftAccount }); }catch(e){}
+  }
+  msftAccount = null;
+  render();
+}
+
+async function getGraphToken(){
+  const app = await ensureMsalApp();
+  if (!msftAccount) throw new Error("Not connected to Microsoft.");
+  try{
+    const result = await app.acquireTokenSilent({ scopes: MSFT_SCOPES, account: msftAccount });
+    return result.accessToken;
+  }catch(e){
+    const result = await app.acquireTokenPopup({ scopes: MSFT_SCOPES, account: msftAccount });
+    return result.accessToken;
+  }
+}
+
+async function graphFetch(path, options){
+  const token = await getGraphToken();
+  const opts = options || {};
+  const res = await fetch("https://graph.microsoft.com/v1.0" + path, Object.assign({}, opts, {
+    headers: Object.assign({ "Authorization": "Bearer " + token, "Content-Type": "application/json" }, opts.headers || {})
+  }));
+  if (res.status === 204) return null;
+  if (res.status === 404) return { __notFound: true };
+  if (!res.ok){
+    const body = await res.text().catch(() => "");
+    throw new Error("Microsoft Graph error " + res.status + ": " + body.slice(0, 200));
+  }
+  return res.json();
+}
+
+function taskToGraphEvent(task){
+  const bodyParts = [];
+  if (task.notes) bodyParts.push(task.notes);
+  bodyParts.push("Synced from Docket" + (task.matterId ? " · " + matterName(task.matterId) : ""));
+  return {
+    subject: task.title + (task.matterId ? " — " + matterName(task.matterId) : ""),
+    body: { contentType: "text", content: bodyParts.join("\n\n") },
+    isAllDay: true,
+    start: { dateTime: task.due + "T00:00:00", timeZone: "UTC" },
+    end: { dateTime: addDays(task.due, 1) + "T00:00:00", timeZone: "UTC" }
+  };
+}
+
+async function graphCreateEvent(task){
+  const data = await graphFetch("/me/events", { method: "POST", body: JSON.stringify(taskToGraphEvent(task)) });
+  return data.id;
+}
+async function graphUpdateEvent(task){
+  const data = await graphFetch("/me/events/" + encodeURIComponent(task.graphEventId), { method: "PATCH", body: JSON.stringify(taskToGraphEvent(task)) });
+  if (data && data.__notFound) return graphCreateEvent(task);
+  return task.graphEventId;
+}
+async function graphDeleteEvent(eventId){
+  await graphFetch("/me/events/" + encodeURIComponent(eventId), { method: "DELETE" });
+}
+
+function setTaskGraphId(id, graphEventId){
+  state.tasks = state.tasks.map(t => t.id === id ? Object.assign({}, t, { graphEventId }) : t);
+  save();
+}
+function setTaskFieldsSilent(id, fields){
+  state.tasks = state.tasks.map(t => t.id === id ? Object.assign({}, t, fields) : t);
+  save();
+}
+
+async function syncTaskToCalendar(task){
+  if (!task || !msftIsConnected()) return;
+  try{
+    if (task.done || !task.due){
+      if (task.graphEventId){
+        await graphDeleteEvent(task.graphEventId);
+        setTaskGraphId(task.id, null);
+      }
+      return;
+    }
+    if (task.graphEventId){
+      const resultId = await graphUpdateEvent(task);
+      if (resultId !== task.graphEventId) setTaskGraphId(task.id, resultId);
+    } else {
+      const eventId = await graphCreateEvent(task);
+      setTaskGraphId(task.id, eventId);
+    }
+  }catch(e){
+    console.warn("Calendar sync failed for task", task.id, e);
+    msftLastError = e && e.message ? e.message : String(e);
+  }
+}
+
+async function syncNow(){
+  if (!msftIsConnected()){ alert("Connect Microsoft Calendar first."); return; }
+  msftBusy = true; msftLastError = ""; render();
+  try{
+    const pushable = state.tasks.filter(t => t.due && !t.done);
+    for (const t of pushable) await syncTaskToCalendar(t);
+    const doneOrGone = state.tasks.filter(t => t.graphEventId && (t.done || !t.due));
+    for (const t of doneOrGone) await syncTaskToCalendar(t);
+
+    const tracked = state.tasks.filter(t => t.graphEventId);
+    for (const t of tracked){
+      try{
+        const ev = await graphFetch("/me/events/" + encodeURIComponent(t.graphEventId), { method: "GET" });
+        if (ev.__notFound){ setTaskGraphId(t.id, null); continue; }
+        const remoteDate = ((ev.start && ev.start.dateTime) || "").slice(0, 10);
+        if (remoteDate && remoteDate !== t.due) setTaskFieldsSilent(t.id, { due: remoteDate });
+      }catch(e){ console.warn("Pull failed for task", t.id, e); }
+    }
+    msftLastSyncAt = new Date();
+  }catch(e){
+    msftLastError = e && e.message ? e.message : String(e);
+  }
+  msftBusy = false; render();
+}
+
+function findMatterByName(name){
+  const key = (name || "").trim().toLowerCase();
+  if (!key) return null;
+  return state.matters.find(m => m.name.trim().toLowerCase() === key) || null;
+}
+
+function openChecklistImport(checklist){
+  if (!checklist || !Array.isArray(checklist.sections)){
+    alert("That file doesn't look like a checklist export.");
+    return;
+  }
+  const client = (checklist.meta && checklist.meta.client) || "";
+  const match = findMatterByName(client);
+  const itemCount = checklist.sections.reduce((n, s) => n + (s.items || []).filter(it => (it.text||"").trim()).length, 0);
+  state.pendingImport = {
+    checklist, itemCount,
+    sectionCount: checklist.sections.length,
+    targetMatterId: match ? match.id : "__new__",
+    newMatterName: client || checklist.title || "New matter",
+    newMatterNumber: (checklist.meta && checklist.meta.caseNumber) || ""
+  };
+  render();
+}
+
+function confirmChecklistImport(){
+  const pending = state.pendingImport;
+  if (!pending) return;
+  let matterId = pending.targetMatterId;
+  if (matterId === "__new__"){
+    const name = (pending.newMatterName || "").trim();
+    if (!name){ alert("Enter a name for the new matter."); return; }
+    const m = { id: uid(), name, number: pending.newMatterNumber || "" };
+    state.matters.push(m);
+    matterId = m.id;
+  }
+  const cl = pending.checklist;
+  let order = -Date.now();
+  cl.sections.forEach(section => {
+    const sectionLabel = (section.title || "").trim();
+    const prefix = sectionLabel && sectionLabel.toLowerCase() !== "checklist" ? sectionLabel + " — " : "";
+    (section.items || []).forEach(item => {
+      const text = (item.text || "").trim();
+      if (!text) return;
+      const notesParts = [];
+      if (item.desc && item.desc.trim()) notesParts.push(item.desc.trim());
+      if (item.notes && item.notes.trim()) notesParts.push(item.notes.trim());
+      const steps = (item.subitems || [])
+        .filter(s => (s.text||"").trim())
+        .map(s => ({ id: uid(), text: s.text.trim(), done: !!s.done }));
+      state.tasks.push({
+        id: uid(), title: prefix + text, matterId,
+        category: "Checklist",
+        priority: CHECKLIST_PRIORITY_MAP[item.priority] || "P3",
+        due: null, recur: null,
+        notes: notesParts.join("\n\n"),
+        steps, done: !!item.done, order: order++
+      });
+    });
+  });
+  state.pendingImport = null;
+  state.matterFilter = matterId;
+  state.filter = "all";
+  save(); render();
+}
+
+function filteredTasks(){
+  const q = (state.query || "").trim().toLowerCase();
+  let list = state.tasks.filter(t => {
+    if (state.matterFilter) return t.matterId === state.matterFilter && !t.done;
+    if (state.filter === "overdue") return isOverdue(t);
+    if (state.filter === "today") return !t.done && (isToday(t) || isOverdue(t));
+    if (state.filter === "upcoming") return !t.done && t.due && t.due > todayISO();
+    if (state.filter === "done") return t.done;
+    return !t.done;
+  });
+  if (q) list = list.filter(t =>
+    (t.title + " " + matterName(t.matterId) + " " + (t.notes||"") + " " + t.category).toLowerCase().includes(q)
+  );
+  if (state.sort === "due") list = list.slice().sort((a,b) => (a.due||"9999") < (b.due||"9999") ? -1 : (a.due||"9999") > (b.due||"9999") ? 1 : 0);
+  else if (state.sort === "priority") list = list.slice().sort((a,b) => a.priority.localeCompare(b.priority));
+  else list = list.slice().sort((a,b) => a.order - b.order);
+  return list;
+}
+
+function el(tag, attrs, children){
+  const node = document.createElement(tag);
+  for (const k in (attrs||{})){
+    if (k === "class") node.className = attrs[k];
+    else if (k === "html") node.innerHTML = attrs[k];
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if (attrs[k] !== undefined && attrs[k] !== null) node.setAttribute(k, attrs[k]);
+  }
+  (children||[]).forEach(c => { if (c) node.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return node;
+}
+
+let dragId = null;
+
+function renderTaskRow(t, expandedId){
+  const wrap = el("div", { class: "task" });
+  const expanded = expandedId === t.id;
+  const row = el("div", {
+    class: "task-row" + (state.selectedId === t.id ? " selected" : "") + (t.done ? " done" : ""),
+    draggable: "true",
+    onclick: () => setState({ selectedId: t.id, expandedId: expanded ? null : t.id })
+  });
+  row.addEventListener("dragstart", () => { dragId = t.id; });
+  row.addEventListener("dragover", e => e.preventDefault());
+  row.addEventListener("drop", e => {
+    e.preventDefault();
+    if (!dragId || dragId === t.id) return;
+    const list = state.tasks.slice();
+    const fi = list.findIndex(x => x.id === dragId), ti = list.findIndex(x => x.id === t.id);
+    if (fi < 0 || ti < 0) return;
+    const [m] = list.splice(fi,1); list.splice(ti,0,m);
+    list.forEach((x,i) => x.order = i);
+    state.tasks = list; state.sort = "manual"; save(); render();
+  });
+
+  const box = el("button", {
+    class: "checkbox" + (t.done ? " checked" : ""),
+    onclick: e => { e.stopPropagation(); patchTask(t.id, x => ({ done: !x.done })); }
+  });
+
+  const main = el("div", { class: "task-main" });
+  main.appendChild(el("div", { class: "task-title" + (t.done ? " done" : "") }, [t.title]));
+  const meta = el("div", { class: "task-meta" });
+  meta.appendChild(el("span", { class: "meta-matter" }, [matterName(t.matterId)]));
+  meta.appendChild(el("span", { class: "meta-due" + (isOverdue(t) ? " overdue" : isToday(t) ? " today" : "") }, [fmtDue(t.due)]));
+  if (t.steps.length) meta.appendChild(el("span", {}, [t.steps.filter(s=>s.done).length + "/" + t.steps.length + " steps"]));
+  if (t.recur) meta.appendChild(el("span", {}, ["↻ " + t.recur]));
+  main.appendChild(meta);
+  row.appendChild(el("span", { style: "width:14px" }));
+  row.appendChild(box);
+  row.appendChild(main);
+
+  const right = el("div", { class: "task-right" });
+  right.appendChild(el("span", { class: "tag tag-cat" }, [t.category]));
+  right.appendChild(el("span", { class: "tag tag-" + t.priority.toLowerCase() }, [t.priority]));
+  right.appendChild(el("span", { class: "chev" + (expanded ? " open" : ""), html: "&rsaquo;" }));
+  row.appendChild(right);
+  wrap.appendChild(row);
+
+  if (expanded){
+    const panel = el("div", { class: "steps-preview" });
+    t.steps.forEach(s => {
+      const line = el("div", { class: "step-line" });
+      line.appendChild(el("button", {
+        class: "checkbox" + (s.done ? " checked" : ""),
+        onclick: e => { e.stopPropagation(); patchTask(t.id, x => ({ steps: x.steps.map(y => y.id===s.id ? {...y, done: !y.done} : y) })); }
+      }));
+      line.appendChild(el("span", { class: "txt" + (s.done ? " done" : "") }, [s.text]));
+      panel.appendChild(line);
+    });
+    if (t.notes) panel.appendChild(el("div", { style: "font-size:13px;line-height:1.55;color:var(--muted);border-left:2px solid var(--accent);padding-left:10px" }, [t.notes]));
+    const actions = el("div", { style: "display:flex;gap:8px" });
+    actions.appendChild(el("button", { class: "btn btn-sm", onclick: e => { e.stopPropagation(); patchTask(t.id, x => ({ due: addDays(todayISO(),1) })); } }, ["Push to tomorrow"]));
+    actions.appendChild(el("button", { class: "btn btn-sm btn-danger", onclick: e => { e.stopPropagation(); if (confirm("Delete this task?")) deleteTask(t.id); } }, ["Delete"]));
+    panel.appendChild(actions);
+    wrap.appendChild(panel);
+  }
+  return wrap;
+}
+
+function render(){
+  const root = document.getElementById("app");
+  root.innerHTML = "";
+
+  const open = state.tasks.filter(t => !t.done);
+  const overdueCount = state.tasks.filter(isOverdue).length;
+  const todayCount = state.tasks.filter(t => !t.done && (isToday(t) || isOverdue(t))).length;
+  const upcomingCount = state.tasks.filter(t => !t.done && t.due && t.due > todayISO()).length;
+  const doneCount = state.tasks.filter(t => t.done).length;
+
+  // Sidebar
+  const sidebar = el("div", { class: "sidebar" });
+  const brand = el("div", { class: "brand" }, [
+    el("h1", {}, ["DOCKET"]),
+    el("span", { class: "sub" }, [open.length + " open"])
+  ]);
+  sidebar.appendChild(brand);
+  sidebar.appendChild(el("div", { class: "today-date" }, [new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})]));
+  sidebar.appendChild(el("button", { class: "btn btn-primary btn-block", onclick: () => { const i = document.getElementById("composerInput"); if (i) i.focus(); } }, ["+ Add task"]));
+
+  const views = el("div", {});
+  views.appendChild(el("div", { class: "section-label" }, ["Views"]));
+  const navList = el("div", { class: "nav-list" });
+  [
+    ["overdue","Overdue",overdueCount,true],
+    ["today","Today",todayCount,false],
+    ["upcoming","Upcoming",upcomingCount,false],
+    ["all","All open",open.length,false],
+    ["done","Done",doneCount,false]
+  ].forEach(([key,label,count,dangerRow]) => {
+    const active = !state.matterFilter && state.filter === key;
+    navList.appendChild(el("button", {
+      class: "nav-row" + (active ? " active" : "") + (dangerRow ? " overdue" : ""),
+      onclick: () => setState({ filter: key, matterFilter: null })
+    }, [
+      el("span", {}, [label]),
+      el("span", { class: "count" }, [String(count)])
+    ]));
+  });
+  views.appendChild(navList);
+  sidebar.appendChild(views);
+
+  const mattersBlock = el("div", {});
+  mattersBlock.appendChild(el("div", { class: "section-label" }, ["Matters"]));
+  const matterList = el("div", { class: "nav-list" });
+  state.matters.forEach(m => {
+    const active = state.matterFilter === m.id;
+    const count = open.filter(t => t.matterId === m.id).length;
+    const row = el("div", { class: "matter-row" + (active ? " active" : "") });
+    row.appendChild(el("span", { class: "dot" }));
+    row.appendChild(el("button", { class: "name", onclick: () => setState({ matterFilter: active ? null : m.id }) }, [m.name]));
+    row.appendChild(el("span", { class: "count" }, [String(count)]));
+    const clList = window.__CHECKLISTS__ ? window.__CHECKLISTS__.getChecklistsForMatter(m.id) : [];
+    if (clList.length){
+      row.appendChild(el("button", {
+        class: "cl-badge", title: clList.length + " checklist" + (clList.length === 1 ? "" : "s") + " — open",
+        onclick: () => {
+          window.__CHECKLISTS__.openChecklist(clList[0].id);
+          if (window.__activateApp) window.__activateApp("checklists");
+        }
+      }, ["📋 " + clList.length]));
+    }
+    row.appendChild(el("button", {
+      class: "del", title: "Delete matter",
+      onclick: () => {
+        if (!confirm('Delete matter "' + m.name + '"? Its tasks will move to "No matter".')) return;
+        state.matters = state.matters.filter(x => x.id !== m.id);
+        state.tasks = state.tasks.map(t => t.matterId === m.id ? {...t, matterId: null} : t);
+        if (state.matterFilter === m.id) state.matterFilter = null;
+        save(); render();
+      }
+    }, ["✕"]));
+    matterList.appendChild(row);
+  });
+  mattersBlock.appendChild(matterList);
+  const addMatterRow = el("div", { class: "add-matter" });
+  const addMatterInput = el("input", { placeholder: "New matter name…" });
+  addMatterRow.appendChild(addMatterInput);
+  addMatterRow.appendChild(el("button", {
+    class: "btn btn-sm", onclick: () => {
+      const v = addMatterInput.value.trim();
+      if (!v) return;
+      const m = { id: uid(), name: v, number: "" };
+      state.matters.push(m);
+      addMatterInput.value = "";
+      save(); render();
+    }
+  }, ["Add"]));
+  mattersBlock.appendChild(addMatterRow);
+  sidebar.appendChild(mattersBlock);
+
+  const footer = el("div", { class: "sidebar-footer" });
+  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => window.print() }, ["Print docket"]));
+  footer.appendChild(el("button", {
+    class: "btn btn-sm", onclick: () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "docket-backup-" + todayISO() + ".json";
+      a.click();
+    }
+  }, ["Export backup"]));
+  const importInput = el("input", { type: "file", id: "importFile", accept: "application/json" });
+  importInput.addEventListener("change", () => {
+    const f = importInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if (!confirm("Import will replace all current tasks and matters. Continue?")) return;
+        state = Object.assign(loadState(), data);
+        save(); render();
+      }catch(e){ alert("Could not read that file."); }
+    };
+    reader.readAsText(f);
+  });
+  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => importInput.click() }, ["Import backup"]));
+  footer.appendChild(importInput);
+
+  const checklistInput = el("input", { type: "file", id: "checklistFile", accept: "application/json" });
+  checklistInput.addEventListener("change", () => {
+    const f = checklistInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "checklist"){
+          openChecklistImport(data.checklist);
+        } else if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "full"){
+          alert("That file is a full Training Checklists backup, not a single checklist. In Training Checklists, open the checklist you want and use its \"Save this checklist\" button instead.");
+        } else {
+          alert("That file doesn't look like a Training Checklists export.");
+        }
+      }catch(e){ alert("Could not read that file."); }
+    };
+    reader.readAsText(f);
+  });
+  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => checklistInput.click() }, ["Import checklist…"]));
+  footer.appendChild(checklistInput);
+
+  const calBlock = el("div", { class: "sidebar-footer", style: "margin-top:0" });
+  if (!msftIsConnected()){
+    calBlock.appendChild(el("button", {
+      class: "btn btn-sm",
+      onclick: () => msftIsConfigured() ? connectMicrosoft() : setState({ msftSetupOpen: true })
+    }, [msftBusy ? "Signing in…" : msftIsConfigured() ? "Sign in to Microsoft" : "Connect Microsoft Calendar"]));
+    if (msftIsConfigured()){
+      calBlock.appendChild(el("button", {
+        class: "btn btn-sm btn-ghost", onclick: () => setState({ msftSetupOpen: true })
+      }, ["Change Client ID…"]));
+    }
+  } else {
+    const label = (msftAccount && (msftAccount.username || msftAccount.name)) || "Microsoft";
+    calBlock.appendChild(el("div", { class: "cal-status" }, [el("span", {}, ["Calendar: "]), el("b", {}, [label])]));
+    const row = el("div", { class: "cal-row" });
+    row.appendChild(el("button", { class: "btn btn-sm", onclick: () => syncNow(), disabled: msftBusy ? "disabled" : undefined }, [msftBusy ? "Syncing…" : "Sync now"]));
+    row.appendChild(el("button", { class: "btn btn-sm btn-ghost", onclick: () => disconnectMicrosoft() }, ["Disconnect"]));
+    calBlock.appendChild(row);
+    if (msftLastSyncAt) calBlock.appendChild(el("div", { class: "cal-status" }, ["Last synced " + msftLastSyncAt.toLocaleTimeString()]));
+  }
+  if (msftLastError) calBlock.appendChild(el("div", { class: "cal-status", style: "color:var(--danger)" }, [msftLastError]));
+  footer.appendChild(calBlock);
+
+  sidebar.appendChild(footer);
+
+  root.appendChild(sidebar);
+
+  // Main
+  const main = el("div", { class: "main" });
+  const head = el("div", { class: "main-head" });
+  const viewTitle = state.matterFilter ? matterName(state.matterFilter)
+    : state.filter === "overdue" ? "Overdue"
+    : state.filter === "today" ? "Today"
+    : state.filter === "upcoming" ? "Upcoming"
+    : state.filter === "done" ? "Done" : "All open";
+  const topRow = el("div", { class: "main-head-top" });
+  topRow.appendChild(el("h2", {}, [viewTitle]));
+  const controls = el("div", { class: "controls" });
+  const searchInput = el("input", { class: "search", placeholder: "Search tasks, matters, notes", value: state.query });
+  searchInput.addEventListener("input", e => setState({ query: e.target.value }));
+  controls.appendChild(searchInput);
+  const sortLabel = state.sort === "manual" ? "Manual" : state.sort === "due" ? "Due date" : "Priority";
+  controls.appendChild(el("button", {
+    class: "btn", onclick: () => setState(s => ({ sort: s.sort === "manual" ? "due" : s.sort === "due" ? "priority" : "manual" }))
+  }, ["Sort: " + sortLabel]));
+  topRow.appendChild(controls);
+  head.appendChild(topRow);
+
+  const todayAll = state.tasks.filter(t => t.due === todayISO());
+  const todayDone = todayAll.filter(t => t.done).length;
+  const pct = todayAll.length ? Math.round(todayDone/todayAll.length*100) : 0;
+  const progRow = el("div", { class: "progress-row" });
+  const track = el("div", { class: "progress-track" });
+  track.appendChild(el("div", { class: "progress-fill", style: "width:" + pct + "%" }));
+  progRow.appendChild(track);
+  progRow.appendChild(el("div", { class: "progress-label" }, [todayDone + " of " + todayAll.length + " done today"]));
+  head.appendChild(progRow);
+  main.appendChild(head);
+
+  const list = el("div", { class: "list" });
+  const tasks = filteredTasks();
+  if (!tasks.length){
+    list.appendChild(el("div", { class: "empty-state" }, [
+      state.query ? 'Nothing matches "' + state.query + '".' : "Nothing here. Add a task below, or check another view."
+    ]));
+  } else {
+    tasks.forEach(t => list.appendChild(renderTaskRow(t, state.expandedId)));
+  }
+  main.appendChild(list);
+
+  const composer = el("div", { class: "composer" });
+  const composerInput = el("input", { id: "composerInput", placeholder: "Add a task — try #Matter !P1 @tomorrow" });
+  composerInput.addEventListener("keydown", e => {
+    if (e.key === "Enter"){ e.preventDefault(); addTask(composerInput.value); }
+  });
+  composer.appendChild(el("span", { style: "color:var(--accent-700);font-size:16px" }, ["+"]));
+  composer.appendChild(composerInput);
+  composer.appendChild(el("span", { class: "hint" }, ["Enter to add · #matter · !p1 · @tomorrow"]));
+  main.appendChild(composer);
+  root.appendChild(main);
+
+  // Detail panel
+  const sel = state.selectedId ? findTask(state.selectedId) : null;
+  const detail = el("div", { class: "detail" });
+  if (!sel){
+    detail.appendChild(el("div", { class: "detail-empty" }, ["Select a task to see its matter, deadline, steps and notes here."]));
+  } else {
+    const body = el("div", { class: "detail-body" });
+    const dhead = el("div", { class: "detail-head" });
+    dhead.appendChild(el("span", { class: "lbl" }, ["Task detail"]));
+    dhead.appendChild(el("button", { class: "btn btn-ghost btn-sm", style: "margin-left:auto", onclick: () => setState({ selectedId: null }) }, ["Close"]));
+    body.appendChild(dhead);
+
+    const titleArea = el("textarea", { class: "detail-title", rows: "2" });
+    titleArea.value = sel.title;
+    titleArea.addEventListener("change", e => patchTask(sel.id, () => ({ title: e.target.value })));
+    body.appendChild(titleArea);
+
+    const grid = el("div", { class: "field-grid" });
+    grid.appendChild(el("label", {}, ["Matter"]));
+    const matterSel = el("select", {});
+    matterSel.appendChild(el("option", { value: "" }, ["No matter"]));
+    state.matters.forEach(m => {
+      const opt = el("option", { value: m.id }, [m.name]);
+      if (sel.matterId === m.id) opt.setAttribute("selected", "selected");
+      matterSel.appendChild(opt);
+    });
+    matterSel.addEventListener("change", e => patchTask(sel.id, () => ({ matterId: e.target.value || null })));
+    grid.appendChild(matterSel);
+
+    grid.appendChild(el("label", {}, ["Due"]));
+    const dueInput = el("input", { type: "date", value: sel.due || "" });
+    dueInput.addEventListener("change", e => patchTask(sel.id, () => ({ due: e.target.value || null })));
+    grid.appendChild(dueInput);
+
+    grid.appendChild(el("label", {}, ["Category"]));
+    const catSel = el("select", {});
+    CATEGORIES.forEach(c => {
+      const opt = el("option", { value: c }, [c]);
+      if (sel.category === c) opt.setAttribute("selected","selected");
+      catSel.appendChild(opt);
+    });
+    catSel.addEventListener("change", e => patchTask(sel.id, () => ({ category: e.target.value })));
+    grid.appendChild(catSel);
+
+    grid.appendChild(el("label", {}, ["Priority"]));
+    const prioRow = el("div", { class: "pillrow" });
+    ["P1","P2","P3"].forEach(p => {
+      prioRow.appendChild(el("button", {
+        class: "pill " + p.toLowerCase() + (sel.priority === p ? " active" : ""),
+        onclick: () => patchTask(sel.id, () => ({ priority: p }))
+      }, [p]));
+    });
+    grid.appendChild(prioRow);
+
+    grid.appendChild(el("label", {}, ["Repeat"]));
+    const recurSel = el("select", {});
+    [["", "Does not repeat"],["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"],["yearly","Yearly"]].forEach(([v,l]) => {
+      const opt = el("option", { value: v }, [l]);
+      if ((sel.recur||"") === v) opt.setAttribute("selected","selected");
+      recurSel.appendChild(opt);
+    });
+    recurSel.addEventListener("change", e => patchTask(sel.id, () => ({ recur: e.target.value || null })));
+    grid.appendChild(recurSel);
+    body.appendChild(grid);
+
+    const stepsBlock = el("div", { class: "steps-block" });
+    stepsBlock.appendChild(el("div", { style: "font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)" },
+      ["Steps" + (sel.steps.length ? " (" + sel.steps.filter(s=>s.done).length + "/" + sel.steps.length + ")" : "")]));
+    sel.steps.forEach(s => {
+      const line = el("div", { class: "step-line" });
+      line.appendChild(el("button", {
+        class: "checkbox" + (s.done ? " checked" : ""),
+        onclick: () => patchTask(sel.id, t => ({ steps: t.steps.map(x => x.id===s.id ? {...x, done: !x.done} : x) }))
+      }));
+      line.appendChild(el("span", { class: "txt" + (s.done ? " done" : "") }, [s.text]));
+      line.appendChild(el("button", {
+        class: "del", onclick: () => patchTask(sel.id, t => ({ steps: t.steps.filter(x => x.id !== s.id) }))
+      }, ["✕"]));
+      stepsBlock.appendChild(line);
+    });
+    const stepInput = el("input", { class: "add-step", placeholder: "Add a step, then press Enter" });
+    stepInput.addEventListener("keydown", e => {
+      if (e.key === "Enter"){
+        e.preventDefault();
+        const v = stepInput.value.trim();
+        if (!v) return;
+        patchTask(sel.id, t => ({ steps: t.steps.concat([{ id: uid(), text: v, done: false }]) }));
+      }
+    });
+    stepsBlock.appendChild(stepInput);
+    body.appendChild(stepsBlock);
+
+    const notesBlock = el("div", { style: "display:flex;flex-direction:column;gap:6px" });
+    notesBlock.appendChild(el("div", { style: "font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)" }, ["Notes"]));
+    const notesArea = el("textarea", { class: "notes", placeholder: "Anything worth remembering later" });
+    notesArea.value = sel.notes || "";
+    notesArea.addEventListener("change", e => patchTask(sel.id, () => ({ notes: e.target.value })));
+    notesBlock.appendChild(notesArea);
+    body.appendChild(notesBlock);
+
+    const actions = el("div", { class: "detail-actions" });
+    actions.appendChild(el("button", {
+      class: "btn btn-primary", onclick: () => patchTask(sel.id, t => ({ done: !t.done }))
+    }, [sel.done ? "Mark not done" : "Mark done"]));
+    actions.appendChild(el("button", {
+      class: "btn", onclick: () => patchTask(sel.id, () => ({ due: addDays(todayISO(),1) }))
+    }, ["Tomorrow"]));
+    actions.appendChild(el("button", {
+      class: "btn btn-danger", onclick: () => { if (confirm("Delete this task permanently?")) deleteTask(sel.id); }
+    }, ["Delete"]));
+    body.appendChild(actions);
+
+    detail.appendChild(body);
+  }
+  root.appendChild(detail);
+
+  // Checklist import modal
+  if (state.pendingImport){
+    const p = state.pendingImport;
+    const backdrop = el("div", { class: "modal-backdrop", onclick: e => { if (e.target === backdrop) setState({ pendingImport: null }); } });
+    const modal = el("div", { class: "modal" });
+    modal.appendChild(el("h3", {}, ["Import: " + (p.checklist.title || "Checklist")]));
+    modal.appendChild(el("div", { class: "summary" }, [
+      p.itemCount + " item" + (p.itemCount === 1 ? "" : "s") + " across " + p.sectionCount + " section" + (p.sectionCount === 1 ? "" : "s") +
+      " will be added as tasks" + (p.checklist.meta && p.checklist.meta.client ? " (from " + p.checklist.meta.client + ")" : "") + "."
+    ]));
+
+    const matterField = el("div", { class: "field" });
+    matterField.appendChild(el("label", {}, ["Add to matter"]));
+    const matterSel = el("select", {});
+    const newOpt = el("option", { value: "__new__" }, ["+ New matter…"]);
+    if (p.targetMatterId === "__new__") newOpt.setAttribute("selected","selected");
+    matterSel.appendChild(newOpt);
+    state.matters.forEach(m => {
+      const opt = el("option", { value: m.id }, [m.name]);
+      if (p.targetMatterId === m.id) opt.setAttribute("selected","selected");
+      matterSel.appendChild(opt);
+    });
+    matterSel.addEventListener("change", e => setState({ pendingImport: Object.assign({}, p, { targetMatterId: e.target.value }) }));
+    matterField.appendChild(matterSel);
+    modal.appendChild(matterField);
+
+    if (p.targetMatterId === "__new__"){
+      const nameField = el("div", { class: "field" });
+      nameField.appendChild(el("label", {}, ["New matter name"]));
+      const nameInput = el("input", { type: "text", value: p.newMatterName || "" });
+      nameInput.addEventListener("input", e => { p.newMatterName = e.target.value; });
+      nameField.appendChild(nameInput);
+      modal.appendChild(nameField);
+
+      const numField = el("div", { class: "field" });
+      numField.appendChild(el("label", {}, ["Matter number (optional)"]));
+      const numInput = el("input", { type: "text", value: p.newMatterNumber || "" });
+      numInput.addEventListener("input", e => { p.newMatterNumber = e.target.value; });
+      numField.appendChild(numInput);
+      modal.appendChild(numField);
+    }
+
+    const actions = el("div", { class: "modal-actions" });
+    actions.appendChild(el("button", { class: "btn", onclick: () => setState({ pendingImport: null }) }, ["Cancel"]));
+    actions.appendChild(el("button", { class: "btn btn-primary", onclick: () => confirmChecklistImport() }, ["Import " + p.itemCount + " item" + (p.itemCount === 1 ? "" : "s")]));
+    modal.appendChild(actions);
+
+    backdrop.appendChild(modal);
+    root.appendChild(backdrop);
+  }
+
+  // Microsoft Calendar setup modal
+  if (state.msftSetupOpen){
+    const cfg = getMsftConfig() || {};
+    const backdrop2 = el("div", { class: "modal-backdrop", onclick: e => { if (e.target === backdrop2) setState({ msftSetupOpen: false }); } });
+    const modal2 = el("div", { class: "modal" });
+    modal2.appendChild(el("h3", {}, ["Connect Microsoft Calendar"]));
+    modal2.appendChild(el("div", { class: "hint-block" }, [
+      "Requires this page to be hosted at a real https:// address (not a local file) that's registered as a redirect URI on an Azure/Entra ID app, granted the Calendars.ReadWrite permission. Paste the Application (client) ID from that registration below."
+    ]));
+
+    const clientField = el("div", { class: "field" });
+    clientField.appendChild(el("label", {}, ["Client ID"]));
+    const clientInput = el("input", { type: "text", value: cfg.clientId || "", placeholder: "e.g. 3f6a1c2e-…" });
+    clientField.appendChild(clientInput);
+    modal2.appendChild(clientField);
+
+    const tenantField = el("div", { class: "field" });
+    tenantField.appendChild(el("label", {}, ["Tenant ID (optional — defaults to “common”)"]));
+    const tenantInput = el("input", { type: "text", value: cfg.tenantId && cfg.tenantId !== "common" ? cfg.tenantId : "", placeholder: "common" });
+    tenantField.appendChild(tenantInput);
+    modal2.appendChild(tenantField);
+
+    const actions2 = el("div", { class: "modal-actions" });
+    actions2.appendChild(el("button", { class: "btn", onclick: () => setState({ msftSetupOpen: false }) }, ["Cancel"]));
+    actions2.appendChild(el("button", {
+      class: "btn btn-primary",
+      onclick: () => {
+        const id = clientInput.value.trim();
+        if (!id){ alert("Enter the Client ID from your Azure app registration."); return; }
+        saveMsftConfig(id, tenantInput.value.trim());
+        msalApp = null;
+        setState({ msftSetupOpen: false });
+        connectMicrosoft();
+      }
+    }, ["Save & connect"]));
+    modal2.appendChild(actions2);
+
+    backdrop2.appendChild(modal2);
+    root.appendChild(backdrop2);
+  }
+}
+
+window.__DOCKET__ = {
+  getMatters: () => state.matters.slice(),
+  getMatterById: id => state.matters.find(m => m.id === id) || null,
+  addMatter: (name, number) => {
+    const m = { id: uid(), name, number: number || "" };
+    state.matters.push(m);
+    save(); render();
+    return m;
+  },
+  addTaskFromChecklistItem: fields => {
+    const prioMap = { H: "P1", M: "P2", L: "P3" };
+    const task = {
+      id: uid(), title: fields.title, matterId: fields.matterId,
+      category: "Checklist",
+      priority: prioMap[fields.priority] || "P3",
+      due: null, recur: null, notes: fields.notes || "",
+      steps: (fields.steps || []).map(s => ({ id: uid(), text: s.text, done: !!s.done })),
+      done: !!fields.done, order: -Date.now()
+    };
+    state.tasks.push(task);
+    save(); render();
+    return task.id;
+  },
+  openTask: taskId => {
+    const t = findTask(taskId);
+    state.selectedId = taskId;
+    if (t){ state.matterFilter = t.matterId; state.filter = "all"; }
+    save(); render();
+  },
+  refresh: () => render()
+};
+
+render();
+if (msftIsConfigured()){
+  ensureMsalApp().then(() => render()).catch(e => { msftLastError = e && e.message ? e.message : String(e); render(); });
+}
+})();
+
+(function(){
+  var host = window.document.getElementById("checklistsHost");
+  var tpl = window.document.getElementById("checklistsTemplate");
+  var shadow = host.attachShadow({ mode: "open" });
+  shadow.appendChild(tpl.content.cloneNode(true));
+  var realDocument = window.document;
+  var document = new Proxy(realDocument, {
+    get: function(target, prop){
+      if (prop === "getElementById" || prop === "querySelector" || prop === "querySelectorAll") {
+        return shadow[prop].bind(shadow);
+      }
+      var v = target[prop];
+      return typeof v === "function" ? v.bind(target) : v;
+    }
+  });
+
+(function(){
+  "use strict";
+
+
+  var STORAGE_KEY = "trainingChecklistsApp_v2";
+  var uidCounter = 1;
+  function uid(){ return "i" + (uidCounter++) + "_" + Math.random().toString(36).slice(2,7); }
+
+  // ---- instructions: a user-built reference library, editable like templates ----
+  // Categories are their own entities (name + a color you pick), not derived
+  // from text — every topic just points at one by id.
+  var CATEGORY_COLOR_PALETTE = ["#b5451f","#c07a12","#8a7c17","#4c7a1f","#1f7a72","#3568a8","#6b4fa0","#a13e82","#416180","#8a3f5a"];
+  var DEFAULT_INSTRUCTION_COLOR = "#416180";
+
+  function buildInstructionTopic(){
+    return { id: uid(), title: "New instruction topic", categoryId: null, sections: [ { title: "Section", items: [ { text:"", priority:"M", desc:"" } ] } ] };
+  }
+  function buildInstructionCategory(name, color){
+    return { id: uid(), name: name || "New category", color: color || CATEGORY_COLOR_PALETTE[0] };
+  }
+  function allInstructionDefs(){
+    return state.instructionTopics;
+  }
+  function instructionDefById(id){
+    for(var i=0;i<state.instructionTopics.length;i++){ if(state.instructionTopics[i].id === id) return state.instructionTopics[i]; }
+    return null;
+  }
+  function instructionCategoryByIdIn(list, id){
+    for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
+    return null;
+  }
+  function instructionCategoryById(id){
+    return instructionCategoryByIdIn(state.instructionCategories, id);
+  }
+  function instructionItemCount(def){
+    var n = 0;
+    def.sections.forEach(function(s){ n += s.items.length; });
+    return n;
+  }
+  function colorForInstructionTopic(def){
+    var cat = def.categoryId ? instructionCategoryById(def.categoryId) : null;
+    return (cat && cat.color) || DEFAULT_INSTRUCTION_COLOR;
+  }
+  // Used only to give legacy free-text categories (from before category
+  // entities existed) a sensible default color when migrating old saves.
+  function hashColorForName(name){
+    var hash = 0;
+    for(var i=0;i<name.length;i++){ hash = (hash * 31 + name.charCodeAt(i)) >>> 0; }
+    return CATEGORY_COLOR_PALETTE[hash % CATEGORY_COLOR_PALETTE.length];
+  }
+
+  // ---- checklists (separate, user-created, never auto-generated) ----
+  function buildItemState(raw){
+    var it = {
+      id: uid(), text: raw.text || "", priority: raw.priority || "M", desc: raw.desc || "",
+      done:false, notes:"", subitems:[], subsectionTitle: raw.subsectionTitle || "",
+      type: raw.type === "yesno" ? "yesno" : "checkbox", answer:null
+    };
+    if(Array.isArray(raw.subitems)){
+      it.subitems = raw.subitems.map(function(s){
+        return { id: uid(), text: s.text || "", priority: s.priority || "M", notes:"", done:false };
+      });
+    }
+    return it;
+  }
+  function buildSubitem(){
+    return { id: uid(), text:"", priority:"M", notes:"", done:false };
+  }
+  function buildSectionsFromInstruction(def){
+    return def.sections.map(function(s){
+      return { title: s.title, linkedInstructionId: def.id, items: s.items.map(buildItemState) };
+    });
+  }
+  function createChecklist(title, linkedInstructionId, copySteps){
+    var linkedDef = linkedInstructionId ? instructionDefById(linkedInstructionId) : null;
+    var sections;
+    if(linkedDef && copySteps){
+      sections = buildSectionsFromInstruction(linkedDef);
+    } else if(linkedDef){
+      sections = [{ title: linkedDef.title, linkedInstructionId: linkedDef.id, items: [] }];
+    } else {
+      sections = [{ title: "Checklist", linkedInstructionId: null, items: [] }];
+    }
+    var cl = {
+      id: uid(),
+      title: title || "Untitled checklist",
+      matterId: null,
+      meta: { client:"", caseNumber:"", staff:"", date:"" },
+      showMeta: true,
+      sections: sections
+    };
+    state.checklists.push(cl);
+    state.activeChecklistId = cl.id;
+    return cl;
+  }
+
+  // ---- standard section / subsection templates (a reusable library, separate from checklists) ----
+  function buildSectionTemplate(){
+    return { id: uid(), title: "New section template", category: "", items: [ { text:"", priority:"M", desc:"", type:"checkbox", subsectionTitle:"", subitems:[] } ] };
+  }
+  function buildSubsectionTemplate(){
+    return { id: uid(), title: "New subsection template", category: "", items: [ { text:"", priority:"M" } ] };
+  }
+  function templateCategories(type){
+    var seen = {};
+    var out = [];
+    templateListForType(type).forEach(function(t){
+      var c = (t.category || "").trim();
+      if(c && !seen[c]){ seen[c] = true; out.push(c); }
+    });
+    out.sort(function(a,b){ return a.localeCompare(b); });
+    return out;
+  }
+  function templateListForType(type){
+    return type === "section" ? state.sectionTemplates : state.subsectionTemplates;
+  }
+  function sectionTemplateById(id){
+    for(var i=0;i<state.sectionTemplates.length;i++){ if(state.sectionTemplates[i].id === id) return state.sectionTemplates[i]; }
+    return null;
+  }
+  function subsectionTemplateById(id){
+    for(var i=0;i<state.subsectionTemplates.length;i++){ if(state.subsectionTemplates[i].id === id) return state.subsectionTemplates[i]; }
+    return null;
+  }
+  function activeTemplate(){
+    if(!state.activeTemplateType) return null;
+    var tmpl = state.activeTemplateType === "section" ? sectionTemplateById(state.activeTemplateId) : subsectionTemplateById(state.activeTemplateId);
+    return tmpl ? { type: state.activeTemplateType, tmpl: tmpl } : null;
+  }
+  function templateItemCount(tmpl){ return tmpl.items.length; }
+
+  function buildDefaultState(){
+    return {
+      view: "instructions",
+      activeInstructionId: null,
+      activeChecklistId: null,
+      instructionTopics: [],
+      instructionCategories: [],
+      checklists: [],
+      sectionTemplates: [],
+      subsectionTemplates: [],
+      activeTemplateId: null,
+      activeTemplateType: null,
+      layout: "one",
+      priorityFilters: { H:false, M:false, L:false },
+      rev: "1.0"
+    };
+  }
+
+  function normalize(state){
+    if(!Array.isArray(state.checklists)) state.checklists = [];
+    state.checklists.forEach(function(cl){
+      if(!cl.id) cl.id = uid();
+      if(typeof cl.title !== "string") cl.title = "Untitled checklist";
+      if(!cl.meta) cl.meta = { client:"", caseNumber:"", staff:"", date:"" };
+      if(typeof cl.matterId === "undefined") cl.matterId = null;
+      if(typeof cl.showMeta !== "boolean") cl.showMeta = true;
+      if(!Array.isArray(cl.sections)) cl.sections = [{ title: "Checklist", linkedInstructionId: null, items: [] }];
+      // migrate from the old checklist-level link (pre section-linking) onto its first section
+      var legacyLink = cl.linkedInstructionId;
+      delete cl.linkedInstructionId;
+      cl.sections.forEach(function(s, idx){
+        if(typeof s.linkedInstructionId === "undefined") s.linkedInstructionId = (idx === 0 && legacyLink) ? legacyLink : null;
+        if(!Array.isArray(s.items)) s.items = [];
+        s.items.forEach(function(it){
+          if(!Array.isArray(it.subitems)) it.subitems = [];
+          if(typeof it.desc !== "string") it.desc = "";
+          if(typeof it.notes !== "string") it.notes = "";
+          if(typeof it.subsectionTitle !== "string") it.subsectionTitle = "";
+          if(it.type !== "checkbox" && it.type !== "yesno") it.type = "checkbox";
+          if(typeof it.answer === "undefined") it.answer = null;
+          it.subitems.forEach(function(sub){
+            if(typeof sub.priority !== "string") sub.priority = "M";
+            if(typeof sub.notes !== "string") sub.notes = "";
+          });
+        });
+      });
+    });
+    if(!Array.isArray(state.sectionTemplates)) state.sectionTemplates = [];
+    if(!Array.isArray(state.subsectionTemplates)) state.subsectionTemplates = [];
+    state.sectionTemplates.forEach(function(t){
+      if(!t.id) t.id = uid();
+      if(typeof t.title !== "string") t.title = "Untitled section template";
+      if(typeof t.category !== "string") t.category = "";
+      if(!Array.isArray(t.items)) t.items = [];
+      t.items.forEach(function(it){
+        if(typeof it.text !== "string") it.text = "";
+        if(typeof it.priority !== "string") it.priority = "M";
+        if(typeof it.desc !== "string") it.desc = "";
+        if(it.type !== "checkbox" && it.type !== "yesno") it.type = "checkbox";
+        if(typeof it.subsectionTitle !== "string") it.subsectionTitle = "";
+        if(!Array.isArray(it.subitems)) it.subitems = [];
+        it.subitems.forEach(function(sub){
+          if(typeof sub.text !== "string") sub.text = "";
+          if(typeof sub.priority !== "string") sub.priority = "M";
+        });
+      });
+    });
+    state.subsectionTemplates.forEach(function(t){
+      if(!t.id) t.id = uid();
+      if(typeof t.title !== "string") t.title = "Untitled subsection template";
+      if(typeof t.category !== "string") t.category = "";
+      if(!Array.isArray(t.items)) t.items = [];
+      t.items.forEach(function(it){
+        if(typeof it.text !== "string") it.text = "";
+        if(typeof it.priority !== "string") it.priority = "M";
+      });
+    });
+
+    if(!Array.isArray(state.instructionCategories)) state.instructionCategories = [];
+    state.instructionCategories.forEach(function(c){
+      if(!c.id) c.id = uid();
+      if(typeof c.name !== "string" || !c.name) c.name = "Category";
+      if(typeof c.color !== "string") c.color = CATEGORY_COLOR_PALETTE[0];
+    });
+
+    if(!Array.isArray(state.instructionTopics)) state.instructionTopics = [];
+    // migrate legacy free-text `category` strings onto category entities
+    var categoryNameToId = {};
+    state.instructionCategories.forEach(function(c){ categoryNameToId[c.name] = c.id; });
+    state.instructionTopics.forEach(function(t){
+      if(!t.id) t.id = uid();
+      if(typeof t.title !== "string") t.title = "Untitled instruction topic";
+      if(typeof t.category === "string" && t.category.trim() && typeof t.categoryId === "undefined"){
+        var name = t.category.trim();
+        if(!categoryNameToId[name]){
+          var newCat = buildInstructionCategory(name, hashColorForName(name));
+          state.instructionCategories.push(newCat);
+          categoryNameToId[name] = newCat.id;
+        }
+        t.categoryId = categoryNameToId[name];
+      }
+      delete t.category;
+      if(typeof t.categoryId === "undefined") t.categoryId = null;
+      if(t.categoryId && !instructionCategoryByIdIn(state.instructionCategories, t.categoryId)) t.categoryId = null;
+      if(!Array.isArray(t.sections)) t.sections = [{ title: "Section", items: [] }];
+      t.sections.forEach(function(s){
+        if(typeof s.title !== "string") s.title = "Section";
+        if(!Array.isArray(s.items)) s.items = [];
+        s.items.forEach(function(it){
+          if(typeof it.text !== "string") it.text = "";
+          if(typeof it.priority !== "string") it.priority = "M";
+          if(typeof it.desc !== "string") it.desc = "";
+        });
+      });
+    });
+
+    if(!state.priorityFilters || typeof state.priorityFilters !== "object") state.priorityFilters = { H:false, M:false, L:false };
+    if(state.view !== "instructions" && state.view !== "checklist" && state.view !== "templates") state.view = "instructions";
+    if(!state.layout) state.layout = "one";
+    if(!state.activeInstructionId || !state.instructionTopics.some(function(t){ return t.id === state.activeInstructionId; })){
+      state.activeInstructionId = state.instructionTopics.length ? state.instructionTopics[0].id : null;
+    }
+    if(!state.activeChecklistId || !checklistById(state, state.activeChecklistId)){
+      state.activeChecklistId = state.checklists.length ? state.checklists[0].id : null;
+    }
+    if(state.activeTemplateType !== "section" && state.activeTemplateType !== "subsection") state.activeTemplateType = null;
+    if(state.activeTemplateType){
+      var list = state.activeTemplateType === "section" ? state.sectionTemplates : state.subsectionTemplates;
+      var found = list.some(function(t){ return t.id === state.activeTemplateId; });
+      if(!found){ state.activeTemplateId = null; state.activeTemplateType = null; }
+    } else {
+      state.activeTemplateId = null;
+    }
+    return state;
+  }
+
+  function checklistById(st, id){
+    for(var i=0;i<st.checklists.length;i++){ if(st.checklists[i].id === id) return st.checklists[i]; }
+    return null;
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return normalize(buildDefaultState());
+      var parsed = JSON.parse(raw);
+      return normalize(parsed);
+    }catch(e){
+      return normalize(buildDefaultState());
+    }
+  }
+
+  var state = loadState();
+  var saveTimer = null;
+  function save(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    }, 150);
+  }
+
+  // ---- save to file / load from file ----
+  // localStorage only lives on one browser/computer, so it doesn't travel
+  // with this HTML file when it's opened elsewhere (e.g. via OneDrive on
+  // another PC). These let you export everything (or a single checklist)
+  // to a real file, and load it back in.
+  function downloadJSON(filename, dataObj){
+    var blob = new Blob([JSON.stringify(dataObj, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function sanitizeFilename(name){
+    var cleaned = (name || "").replace(/[\\/:*?"<>|]/g, "-").trim().slice(0, 80);
+    return cleaned || "Untitled checklist";
+  }
+  function exportWholeState(){
+    var envelope = {
+      __appExport: "trainingChecklistsApp",
+      __exportType: "full",
+      __exportedAt: new Date().toISOString(),
+      state: state
+    };
+    downloadJSON("McRoberts Training Checklists Backup " + new Date().toISOString().slice(0,10) + ".json", envelope);
+  }
+  function importWholeState(envelope){
+    if(!confirm("Loading this file will replace everything currently in the app — all checklists, instructions, and templates — with what's in the file. This cannot be undone. Continue?")) return;
+    var normalized = normalize(envelope.state && typeof envelope.state === "object" ? envelope.state : {});
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); }catch(e){}
+    location.reload();
+  }
+  function exportChecklist(cl){
+    var envelope = {
+      __appExport: "trainingChecklistsApp",
+      __exportType: "checklist",
+      __exportedAt: new Date().toISOString(),
+      checklist: cl
+    };
+    downloadJSON(sanitizeFilename(cl.title) + ".json", envelope);
+  }
+  function regenerateChecklistIds(cl){
+    cl.id = uid();
+    cl.sections.forEach(function(sec){
+      sec.items.forEach(function(it){
+        it.id = uid();
+        (it.subitems || []).forEach(function(si){ si.id = uid(); });
+      });
+    });
+  }
+  function importChecklist(cl){
+    if(!cl || typeof cl !== "object"){ alert("That file doesn't look like a saved checklist."); return; }
+    if(!Array.isArray(cl.sections)) cl.sections = [];
+    if(typeof cl.title !== "string") cl.title = "Untitled checklist";
+    regenerateChecklistIds(cl);
+    if(!cl.meta) cl.meta = { client:"", caseNumber:"", staff:"", date:"" };
+    if(typeof cl.showMeta !== "boolean") cl.showMeta = true;
+    cl.sections.forEach(function(s){
+      if(typeof s.title !== "string") s.title = "Section";
+      if(!Array.isArray(s.items)) s.items = [];
+    });
+    state.checklists.push(cl);
+    state.activeChecklistId = cl.id;
+    state.view = "checklist";
+    document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-view") === state.view);
+    });
+    renderSidebar();
+    renderMain();
+    save();
+  }
+  function readJSONFile(file, onOk, onErr){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        onOk(parsed);
+      }catch(e){
+        onErr(e);
+      }
+    };
+    reader.onerror = function(){ onErr(reader.error); };
+    reader.readAsText(file);
+  }
+
+  function activeInstruction(){ return instructionDefById(state.activeInstructionId); }
+  function activeChecklist(){ return checklistById(state, state.activeChecklistId); }
+
+  // Follow-up items (subitems) only count toward totals when they're actually
+  // reachable: always for a plain checkbox item, and only on the "Yes" branch
+  // of a yes/no item — a "No" answer means that branch was never entered.
+  function itemTotals(it){
+    var total = 1, done = it.done ? 1 : 0;
+    var followUpsReachable = it.type !== "yesno" || it.answer === "yes";
+    if(followUpsReachable){
+      it.subitems.forEach(function(sub){ total++; if(sub.done) done++; });
+    }
+    return { total: total, done: done };
+  }
+
+  function checklistTotals(cs){
+    var total = 0, done = 0;
+    cs.sections.forEach(function(s){
+      s.items.forEach(function(it){
+        var t = itemTotals(it);
+        total += t.total; done += t.done;
+      });
+    });
+    return { total: total, done: done };
+  }
+
+  // ---- DOM refs ----
+  var navGroupsEl = document.getElementById("navGroups");
+  var searchInputEl = document.getElementById("searchInput");
+  var checklistViewEl = document.getElementById("checklistView");
+  var checklistEditorEl = document.getElementById("checklistEditor");
+  var checklistEmptyEl = document.getElementById("checklistEmpty");
+  var instructionsViewEl = document.getElementById("instructionsView");
+  var mainWrapEl = document.querySelector(".main-wrap");
+  var docTitleEl = document.getElementById("docTitle");
+  var instructionEmptyEl = document.getElementById("instructionEmpty");
+  var instructionEditorEl = document.getElementById("instructionEditor");
+  var instrCategorySwatchEl = document.getElementById("instrCategorySwatch");
+  var instrCategorySelectEl = document.getElementById("instrCategorySelect");
+  var instrCategoryFormEl = document.getElementById("instrCategoryForm");
+  var catFormNameEl = document.getElementById("catFormName");
+  var catFormColorInputEl = document.getElementById("catFormColorInput");
+  var catFormSwatchesEl = document.getElementById("catFormSwatches");
+  var catFormSaveBtn = document.getElementById("catFormSaveBtn");
+  var catFormCancelBtn = document.getElementById("catFormCancelBtn");
+  var instrTitleInputEl = document.getElementById("instrTitleInput");
+  var deleteInstructionBtn = document.getElementById("deleteInstructionBtn");
+  var instrSectionsEl = document.getElementById("instrSections");
+  var progressDoneEl = document.getElementById("progressDone");
+  var progressTotalEl = document.getElementById("progressTotal");
+  var sectionsEl = document.getElementById("sections");
+  var metaClientEl = document.getElementById("metaClient");
+  var metaCaseNumberEl = document.getElementById("metaCaseNumber");
+  var metaStaffEl = document.getElementById("metaStaff");
+  var metaDateEl = document.getElementById("metaDate");
+  var metaGridEl = document.getElementById("metaGrid");
+  var metaMatterLinkEl = document.getElementById("metaMatterLink");
+  var metaHideBtn = document.getElementById("metaHideBtn");
+  var metaShowBtn = document.getElementById("metaShowBtn");
+  var newInstructionTopicBtn = document.getElementById("newInstructionTopicBtn");
+  var newChecklistBtn = document.getElementById("newChecklistBtn");
+  var loadChecklistFileBtn = document.getElementById("loadChecklistFileBtn");
+  var loadChecklistFileInput = document.getElementById("loadChecklistFileInput");
+  var saveChecklistFileBtn = document.getElementById("saveChecklistFileBtn");
+  var newChecklistFormEl = document.getElementById("newChecklistForm");
+  var ncTitleEl = document.getElementById("ncTitle");
+  var ncLinkEl = document.getElementById("ncLink");
+  var ncCopyStepsEl = document.getElementById("ncCopySteps");
+  var ncCreateBtn = document.getElementById("ncCreateBtn");
+  var ncCancelBtn = document.getElementById("ncCancelBtn");
+  var deleteChecklistBtn = document.getElementById("deleteChecklistBtn");
+  var templatesViewEl = document.getElementById("templatesView");
+  var templateEmptyEl = document.getElementById("templateEmpty");
+  var templateEditorEl = document.getElementById("templateEditor");
+  var templateTypeLabelEl = document.getElementById("templateTypeLabel");
+  var templateTitleEl = document.getElementById("templateTitle");
+  var templateCategoryEl = document.getElementById("templateCategory");
+  var templateCategoryOptionsEl = document.getElementById("templateCategoryOptions");
+  var templateItemsWrapEl = document.getElementById("templateItemsWrap");
+  var deleteTemplateBtn = document.getElementById("deleteTemplateBtn");
+  var newSectionTemplateBtn = document.getElementById("newSectionTemplateBtn");
+  var newSubsectionTemplateBtn = document.getElementById("newSubsectionTemplateBtn");
+
+  var searchQuery = "";
+
+  // ---- shared: populate an instruction-topic <select> with optgroups ----
+  function populateInstructionSelect(selectEl, selectedId){
+    selectEl.innerHTML = "";
+    var none = document.createElement("option");
+    none.value = "";
+    none.textContent = "— No link —";
+    selectEl.appendChild(none);
+
+    if(!state.instructionTopics.length){
+      var noneYet = document.createElement("option");
+      noneYet.value = "";
+      noneYet.disabled = true;
+      noneYet.textContent = "No instruction topics yet — build some in the Instructions tab";
+      selectEl.appendChild(noneYet);
+      return;
+    }
+
+    var byCategory = {};
+    var catOrder = [];
+    state.instructionTopics.forEach(function(def){
+      var key = def.categoryId || "__none__";
+      if(!byCategory[key]){ byCategory[key] = []; catOrder.push(key); }
+      byCategory[key].push(def);
+    });
+    catOrder.sort(function(a, b){
+      if(a === "__none__") return b === "__none__" ? 0 : 1;
+      if(b === "__none__") return -1;
+      var catA = instructionCategoryById(a), catB = instructionCategoryById(b);
+      return (catA ? catA.name : "").localeCompare(catB ? catB.name : "");
+    });
+
+    catOrder.forEach(function(key){
+      var cat = key === "__none__" ? null : instructionCategoryById(key);
+      var group = document.createElement("optgroup");
+      group.label = cat ? cat.name : "Uncategorized";
+      byCategory[key].slice().sort(function(a, b){ return (a.title||"").localeCompare(b.title||""); }).forEach(function(def){
+        var opt = document.createElement("option");
+        opt.value = def.id;
+        opt.textContent = def.title || "Untitled";
+        if(def.id === selectedId) opt.selected = true;
+        group.appendChild(opt);
+      });
+      selectEl.appendChild(group);
+    });
+  }
+
+  function populateTemplateSelect(selectEl, type){
+    selectEl.innerHTML = "";
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = type === "section" ? "— Choose a section template —" : "— Choose a subsection template —";
+    selectEl.appendChild(placeholder);
+    templateListForType(type).forEach(function(t){
+      var opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.title || "Untitled";
+      selectEl.appendChild(opt);
+    });
+  }
+
+  // ---- sidebar ----
+  function renderSidebar(){
+    navGroupsEl.innerHTML = "";
+    var placeholders = { instructions: "Search instructions", checklist: "Search checklists", templates: "Search templates" };
+    searchInputEl.placeholder = placeholders[state.view] || "Search";
+    newInstructionTopicBtn.style.display = state.view === "instructions" ? "block" : "none";
+    newChecklistBtn.style.display = state.view === "checklist" ? "block" : "none";
+    loadChecklistFileBtn.style.display = state.view === "checklist" ? "block" : "none";
+    newSectionTemplateBtn.style.display = state.view === "templates" ? "block" : "none";
+    newSubsectionTemplateBtn.style.display = state.view === "templates" ? "block" : "none";
+    if(state.view !== "checklist") newChecklistFormEl.classList.remove("open");
+    if(state.view === "instructions") renderInstructionsSidebar();
+    else if(state.view === "checklist") renderChecklistsSidebar();
+    else renderTemplatesSidebar();
+  }
+
+  function renderTemplatesSidebar(){
+    var q = searchQuery.trim().toLowerCase();
+
+    function buildTypeGroup(label, type, list){
+      var matches = list.filter(function(t){ return !q || t.title.toLowerCase().indexOf(q) !== -1; });
+
+      var group = document.createElement("div");
+      group.className = "nav-group";
+      var typeLabelEl = document.createElement("div");
+      typeLabelEl.className = "nav-type-label";
+      typeLabelEl.textContent = label;
+      group.appendChild(typeLabelEl);
+
+      if(!list.length){
+        var empty = document.createElement("div");
+        empty.className = "nav-empty";
+        empty.textContent = "None yet.";
+        group.appendChild(empty);
+        navGroupsEl.appendChild(group);
+        return;
+      }
+      if(!matches.length){
+        var noMatch = document.createElement("div");
+        noMatch.className = "nav-empty";
+        noMatch.textContent = "No matches.";
+        group.appendChild(noMatch);
+        navGroupsEl.appendChild(group);
+        return;
+      }
+
+      // group by category — templates without one fall into "Uncategorized"
+      var byCategory = {};
+      var catOrder = [];
+      matches.forEach(function(t){
+        var cat = (t.category || "").trim() || "Uncategorized";
+        if(!byCategory[cat]){ byCategory[cat] = []; catOrder.push(cat); }
+        byCategory[cat].push(t);
+      });
+      catOrder.sort(function(a, b){
+        if(a === "Uncategorized") return b === "Uncategorized" ? 0 : 1;
+        if(b === "Uncategorized") return -1;
+        return a.localeCompare(b);
+      });
+      var showCatLabels = catOrder.length > 1 || catOrder[0] !== "Uncategorized";
+
+      catOrder.forEach(function(cat){
+        if(showCatLabels){
+          var catLabel = document.createElement("div");
+          catLabel.className = "nav-subcat-label";
+          catLabel.textContent = cat;
+          group.appendChild(catLabel);
+        }
+        var catItems = byCategory[cat].slice().sort(function(a, b){ return (a.title||"").localeCompare(b.title||""); });
+        catItems.forEach(function(t){
+          var btn = document.createElement("button");
+          btn.className = "nav-item" + (showCatLabels ? " nested" : "") + (state.activeTemplateType === type && state.activeTemplateId === t.id ? " active" : "");
+          btn.type = "button";
+
+          var nameSpan = document.createElement("span");
+          nameSpan.textContent = t.title || "Untitled";
+          btn.appendChild(nameSpan);
+
+          var countSpan = document.createElement("span");
+          countSpan.className = "nav-count";
+          countSpan.textContent = String(templateItemCount(t));
+          btn.appendChild(countSpan);
+
+          btn.addEventListener("click", function(){
+            state.activeTemplateType = type;
+            state.activeTemplateId = t.id;
+            save();
+            renderSidebar();
+            renderMain();
+            window.scrollTo(0,0);
+          });
+
+          group.appendChild(btn);
+        });
+      });
+
+      navGroupsEl.appendChild(group);
+    }
+
+    buildTypeGroup("Section templates", "section", state.sectionTemplates);
+    buildTypeGroup("Subsection templates", "subsection", state.subsectionTemplates);
+  }
+
+  function renderInstructionsSidebar(){
+    var q = searchQuery.trim().toLowerCase();
+    var list = state.instructionTopics;
+    var matches = list.filter(function(def){ return !q || def.title.toLowerCase().indexOf(q) !== -1; });
+
+    if(!list.length){
+      var empty = document.createElement("div");
+      empty.className = "nav-empty";
+      empty.textContent = "No instruction topics yet. Use + New instruction topic above to start building your library.";
+      navGroupsEl.appendChild(empty);
+      return;
+    }
+    if(!matches.length){
+      var noMatch = document.createElement("div");
+      noMatch.className = "nav-empty";
+      noMatch.textContent = "No instruction topics match your search.";
+      navGroupsEl.appendChild(noMatch);
+      return;
+    }
+
+    var byCategory = {};
+    var catOrder = [];
+    matches.forEach(function(def){
+      var key = def.categoryId || "__none__";
+      if(!byCategory[key]){ byCategory[key] = []; catOrder.push(key); }
+      byCategory[key].push(def);
+    });
+    catOrder.sort(function(a, b){
+      if(a === "__none__") return b === "__none__" ? 0 : 1;
+      if(b === "__none__") return -1;
+      var catA = instructionCategoryById(a), catB = instructionCategoryById(b);
+      return (catA ? catA.name : "").localeCompare(catB ? catB.name : "");
+    });
+    var showCatLabels = catOrder.length > 1 || catOrder[0] !== "__none__";
+
+    var group = document.createElement("div");
+    group.className = "nav-group";
+
+    catOrder.forEach(function(key){
+      if(showCatLabels){
+        var cat = key === "__none__" ? null : instructionCategoryById(key);
+        var catLabel = document.createElement("div");
+        catLabel.className = "nav-subcat-label";
+        if(cat){
+          var dot = document.createElement("span");
+          dot.className = "nav-link-dot";
+          dot.style.background = cat.color;
+          catLabel.appendChild(dot);
+        }
+        catLabel.appendChild(document.createTextNode(cat ? cat.name : "Uncategorized"));
+        group.appendChild(catLabel);
+      }
+      var catItems = byCategory[key].slice().sort(function(a, b){ return (a.title||"").localeCompare(b.title||""); });
+      catItems.forEach(function(def){
+        var btn = document.createElement("button");
+        btn.className = "nav-item" + (showCatLabels ? " nested" : "") + (def.id === state.activeInstructionId ? " active" : "");
+        btn.type = "button";
+
+        var nameSpan = document.createElement("span");
+        nameSpan.textContent = def.title || "Untitled";
+        btn.appendChild(nameSpan);
+
+        var countSpan = document.createElement("span");
+        countSpan.className = "nav-count";
+        countSpan.textContent = String(instructionItemCount(def));
+        btn.appendChild(countSpan);
+
+        btn.addEventListener("click", function(){
+          state.activeInstructionId = def.id;
+          save();
+          renderSidebar();
+          renderMain();
+          window.scrollTo(0,0);
+        });
+
+        group.appendChild(btn);
+      });
+    });
+
+    navGroupsEl.appendChild(group);
+  }
+
+  function renderChecklistsSidebar(){
+    var q = searchQuery.trim().toLowerCase();
+    var matches = state.checklists.filter(function(cl){
+      return !q || cl.title.toLowerCase().indexOf(q) !== -1;
+    });
+
+    if(!state.checklists.length){
+      var empty = document.createElement("div");
+      empty.className = "nav-empty";
+      empty.textContent = "No checklists yet. Checklists are never created automatically — use + New checklist above to start one.";
+      navGroupsEl.appendChild(empty);
+      return;
+    }
+
+    if(!matches.length){
+      var noMatch = document.createElement("div");
+      noMatch.className = "nav-empty";
+      noMatch.textContent = "No checklists match your search.";
+      navGroupsEl.appendChild(noMatch);
+      return;
+    }
+
+    var group = document.createElement("div");
+    group.className = "nav-group";
+    matches.forEach(function(cl){
+      var totals = checklistTotals(cl);
+      var btn = document.createElement("button");
+      btn.className = "nav-item" + (cl.id === state.activeChecklistId ? " active" : "");
+      btn.type = "button";
+
+      var nameSpan = document.createElement("span");
+      var hasLinkedSection = cl.sections.some(function(s){ return s.linkedInstructionId; });
+      if(hasLinkedSection){
+        var dot = document.createElement("span");
+        dot.className = "nav-link-dot";
+        dot.title = "One or more sections are linked to an instruction topic";
+        nameSpan.appendChild(dot);
+      }
+      nameSpan.appendChild(document.createTextNode(cl.title || "Untitled checklist"));
+      btn.appendChild(nameSpan);
+
+      var countSpan = document.createElement("span");
+      countSpan.className = "nav-count";
+      countSpan.textContent = totals.done + "/" + totals.total;
+      btn.appendChild(countSpan);
+
+      btn.addEventListener("click", function(){
+        state.activeChecklistId = cl.id;
+        save();
+        renderSidebar();
+        renderMain();
+        window.scrollTo(0,0);
+      });
+
+      group.appendChild(btn);
+    });
+    navGroupsEl.appendChild(group);
+  }
+
+  searchInputEl.addEventListener("input", function(){
+    searchQuery = searchInputEl.value;
+    renderSidebar();
+  });
+
+  // ---- new checklist creation ----
+  newChecklistBtn.addEventListener("click", function(){
+    if(state.view !== "checklist"){
+      state.view = "checklist";
+      document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+        b.classList.toggle("active", b.getAttribute("data-view") === "checklist");
+      });
+      save();
+      renderSidebar();
+      renderMain();
+    }
+    newChecklistFormEl.classList.add("open");
+    populateInstructionSelect(ncLinkEl, "");
+    ncTitleEl.value = "";
+    ncCopyStepsEl.checked = false;
+    ncCopyStepsEl.disabled = true;
+    ncTitleEl.focus();
+  });
+  ncCancelBtn.addEventListener("click", function(){
+    newChecklistFormEl.classList.remove("open");
+  });
+  ncLinkEl.addEventListener("change", function(){
+    var linked = !!ncLinkEl.value;
+    ncCopyStepsEl.disabled = !linked;
+    if(!linked) ncCopyStepsEl.checked = false;
+  });
+  ncCreateBtn.addEventListener("click", function(){
+    var title = ncTitleEl.value.trim();
+    if(!title){ ncTitleEl.focus(); return; }
+    createChecklist(title, ncLinkEl.value || null, ncCopyStepsEl.checked);
+    newChecklistFormEl.classList.remove("open");
+    save();
+    renderSidebar();
+    renderMain();
+    window.scrollTo(0,0);
+  });
+
+  // ---- new template creation ----
+  function switchToView(view){
+    if(state.view === view) return;
+    state.view = view;
+    document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-view") === view);
+    });
+    save();
+  }
+  newSectionTemplateBtn.addEventListener("click", function(){
+    switchToView("templates");
+    var t = buildSectionTemplate();
+    state.sectionTemplates.push(t);
+    state.activeTemplateType = "section";
+    state.activeTemplateId = t.id;
+    save();
+    renderSidebar();
+    renderMain();
+    window.scrollTo(0,0);
+    templateTitleEl.focus();
+    templateTitleEl.select();
+  });
+  newSubsectionTemplateBtn.addEventListener("click", function(){
+    switchToView("templates");
+    var t = buildSubsectionTemplate();
+    state.subsectionTemplates.push(t);
+    state.activeTemplateType = "subsection";
+    state.activeTemplateId = t.id;
+    save();
+    renderSidebar();
+    renderMain();
+    window.scrollTo(0,0);
+    templateTitleEl.focus();
+    templateTitleEl.select();
+  });
+
+  // ---- new instruction topic ----
+  newInstructionTopicBtn.addEventListener("click", function(){
+    switchToView("instructions");
+    var t = buildInstructionTopic();
+    state.instructionTopics.push(t);
+    state.activeInstructionId = t.id;
+    save();
+    renderSidebar();
+    renderMain();
+    window.scrollTo(0,0);
+    instrTitleInputEl.focus();
+    instrTitleInputEl.select();
+  });
+
+  // ---- instruction category picker (select existing, or create/recolor one) ----
+  catFormSwatchesEl.innerHTML = "";
+  CATEGORY_COLOR_PALETTE.forEach(function(c){
+    var sw = document.createElement("button");
+    sw.type = "button";
+    sw.className = "color-swatch-btn";
+    sw.style.background = c;
+    sw.title = c;
+    sw.addEventListener("click", function(){ catFormColorInputEl.value = c; });
+    catFormSwatchesEl.appendChild(sw);
+  });
+
+  var catFormEditingCategory = null; // null = creating a new category; object = editing this one
+
+  function populateInstrCategorySelect(){
+    var def = activeInstruction();
+    var currentId = def ? def.categoryId : null;
+    instrCategorySelectEl.innerHTML = "";
+
+    var noneOpt = document.createElement("option");
+    noneOpt.value = "";
+    noneOpt.textContent = "— No category —";
+    if(!currentId) noneOpt.selected = true;
+    instrCategorySelectEl.appendChild(noneOpt);
+
+    state.instructionCategories.slice().sort(function(a, b){ return a.name.localeCompare(b.name); }).forEach(function(c){
+      var opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if(c.id === currentId) opt.selected = true;
+      instrCategorySelectEl.appendChild(opt);
+    });
+
+    var newOpt = document.createElement("option");
+    newOpt.value = "__new__";
+    newOpt.textContent = "+ New category…";
+    instrCategorySelectEl.appendChild(newOpt);
+  }
+
+  function updateInstrCategorySwatch(){
+    var def = activeInstruction();
+    var color = def ? colorForInstructionTopic(def) : DEFAULT_INSTRUCTION_COLOR;
+    instrCategorySwatchEl.style.background = color;
+    instrCategorySwatchEl.disabled = !def;
+  }
+
+  function openCategoryForm(category){
+    catFormEditingCategory = category || null;
+    catFormNameEl.value = category ? category.name : "";
+    catFormColorInputEl.value = category ? category.color : CATEGORY_COLOR_PALETTE[0];
+    instrCategoryFormEl.classList.add("open");
+    catFormNameEl.focus();
+    catFormNameEl.select();
+  }
+  function closeCategoryForm(){
+    instrCategoryFormEl.classList.remove("open");
+    catFormEditingCategory = null;
+    populateInstrCategorySelect();
+  }
+
+  instrCategorySelectEl.addEventListener("change", function(){
+    var def = activeInstruction();
+    if(!def) return;
+    if(instrCategorySelectEl.value === "__new__"){
+      openCategoryForm(null);
+      return;
+    }
+    def.categoryId = instrCategorySelectEl.value || null;
+    updateInstrCategorySwatch();
+    instructionsViewEl.style.setProperty("--onp-color", colorForInstructionTopic(def));
+    save();
+    renderSidebar();
+  });
+
+  instrCategorySwatchEl.addEventListener("click", function(){
+    var def = activeInstruction();
+    if(!def) return;
+    var cat = def.categoryId ? instructionCategoryById(def.categoryId) : null;
+    openCategoryForm(cat);
+  });
+
+  catFormCancelBtn.addEventListener("click", function(){
+    closeCategoryForm();
+  });
+
+  catFormSaveBtn.addEventListener("click", function(){
+    var name = catFormNameEl.value.trim();
+    if(!name){ catFormNameEl.focus(); return; }
+    var color = catFormColorInputEl.value;
+
+    if(catFormEditingCategory){
+      catFormEditingCategory.name = name;
+      catFormEditingCategory.color = color;
+    } else {
+      var cat = buildInstructionCategory(name, color);
+      state.instructionCategories.push(cat);
+      var def = activeInstruction();
+      if(def) def.categoryId = cat.id;
+    }
+
+    closeCategoryForm();
+    updateInstrCategorySwatch();
+    var activeDef = activeInstruction();
+    if(activeDef) instructionsViewEl.style.setProperty("--onp-color", colorForInstructionTopic(activeDef));
+    save();
+    renderSidebar();
+  });
+
+  instrTitleInputEl.addEventListener("input", function(){
+    var def = activeInstruction();
+    if(!def) return;
+    def.title = instrTitleInputEl.value;
+    save();
+    renderSidebar();
+  });
+
+  deleteInstructionBtn.addEventListener("click", function(){
+    var def = activeInstruction();
+    if(!def) return;
+    if(!confirm('Delete "' + (def.title || "this topic") + '"? Checklist sections already linked to it will just show as unlinked — this cannot be undone.')) return;
+    var idx = state.instructionTopics.indexOf(def);
+    if(idx > -1) state.instructionTopics.splice(idx, 1);
+    state.activeInstructionId = state.instructionTopics.length ? state.instructionTopics[0].id : null;
+    save();
+    renderSidebar();
+    renderMain();
+  });
+
+  // ---- priority filter ----
+  function activePriorities(){
+    return Object.keys(state.priorityFilters).filter(function(p){ return state.priorityFilters[p]; });
+  }
+  function applyFilter(){
+    var active = activePriorities();
+    var rows = document.querySelectorAll(".row, .sub-row");
+    rows.forEach(function(r){
+      var pri = r.getAttribute("data-priority");
+      if(active.length && active.indexOf(pri) === -1){
+        r.classList.add("hidden");
+      } else {
+        r.classList.remove("hidden");
+      }
+    });
+  }
+
+  // ---- checklist row rendering ----
+  function renderSubsection(item, row){
+    var isYesNo = item.type === "yesno";
+    if(isYesNo && item.answer !== "yes") return; // "No" (or unanswered) skips straight past — nothing to show
+    if(!isYesNo && !item.subitems.length) return;
+
+    var box = document.createElement("div");
+    box.className = "subsection";
+
+    var head = document.createElement("div");
+    head.className = "subsection-head";
+
+    var titleInput = document.createElement("input");
+    titleInput.className = "subsection-title";
+    titleInput.placeholder = isYesNo ? "If yes…" : "Additional items";
+    titleInput.value = item.subsectionTitle || "";
+    titleInput.addEventListener("input", function(){
+      item.subsectionTitle = titleInput.value;
+      save();
+    });
+    head.appendChild(titleInput);
+
+    var count = document.createElement("span");
+    count.className = "subsection-count";
+    var doneCount = item.subitems.filter(function(sub){ return sub.done; }).length;
+    count.textContent = doneCount + " / " + item.subitems.length;
+    head.appendChild(count);
+
+    box.appendChild(head);
+
+    var list = document.createElement("div");
+    list.className = "sub-rows";
+
+    item.subitems.forEach(function(sub){
+      var srow = document.createElement("div");
+      srow.className = "sub-row" + (sub.done ? " done" : "");
+      srow.setAttribute("data-item-id", sub.id);
+      srow.setAttribute("data-priority", sub.priority || "M");
+
+      var scheck = document.createElement("button");
+      scheck.type = "button";
+      scheck.className = "sub-check" + (sub.done ? " checked" : "");
+      scheck.addEventListener("click", function(){
+        sub.done = !sub.done;
+        scheck.classList.toggle("checked", sub.done);
+        srow.classList.toggle("done", sub.done);
+        updateProgress();
+        save();
+      });
+      srow.appendChild(scheck);
+
+      var stext = document.createElement("input");
+      stext.className = "sub-text";
+      stext.placeholder = isYesNo ? "Follow-up item" : "Item";
+      stext.value = sub.text;
+      stext.spellcheck = false;
+      stext.addEventListener("input", function(){
+        sub.text = stext.value;
+        save();
+      });
+      srow.appendChild(stext);
+
+      var spri = document.createElement("select");
+      spri.className = "sub-priority";
+      spri.setAttribute("data-pri", sub.priority || "M");
+      ["H","M","L"].forEach(function(p){
+        var opt = document.createElement("option");
+        opt.value = p; opt.textContent = p;
+        if(p === (sub.priority || "M")) opt.selected = true;
+        spri.appendChild(opt);
+      });
+      spri.addEventListener("change", function(){
+        sub.priority = spri.value;
+        spri.setAttribute("data-pri", sub.priority);
+        srow.setAttribute("data-priority", sub.priority);
+        applyFilter();
+        save();
+      });
+      srow.appendChild(spri);
+
+      var sdel = document.createElement("button");
+      sdel.type = "button";
+      sdel.className = "sub-del";
+      sdel.innerHTML = "&times;";
+      sdel.title = isYesNo ? "Remove follow-up item" : "Remove item";
+      sdel.addEventListener("click", function(){
+        var idx = item.subitems.indexOf(sub);
+        if(idx > -1) item.subitems.splice(idx, 1);
+        renderChecklist();
+        save();
+      });
+      srow.appendChild(sdel);
+
+      var snotes = document.createElement("input");
+      snotes.className = "sub-note-line";
+      snotes.placeholder = "Notes";
+      snotes.value = sub.notes || "";
+      snotes.addEventListener("input", function(){
+        sub.notes = snotes.value;
+        save();
+      });
+      srow.appendChild(snotes);
+
+      list.appendChild(srow);
+    });
+
+    box.appendChild(list);
+
+    var addRowGroup = document.createElement("div");
+    addRowGroup.className = "add-row-group";
+
+    var addMore = document.createElement("button");
+    addMore.type = "button";
+    addMore.className = "add-sub-item";
+    addMore.textContent = isYesNo ? "+ Add follow-up item" : "+ Add item";
+    addMore.addEventListener("click", function(){
+      item.subitems.push(buildSubitem());
+      renderChecklist();
+      save();
+      focusLastSubInput(item.id);
+    });
+    addRowGroup.appendChild(addMore);
+
+    if(state.subsectionTemplates.length){
+      var tplPicker = document.createElement("select");
+      tplPicker.className = "tpl-picker";
+      populateTemplateSelect(tplPicker, "subsection");
+      tplPicker.addEventListener("change", function(){
+        var tmpl = subsectionTemplateById(tplPicker.value);
+        if(tmpl){
+          if(!item.subsectionTitle) item.subsectionTitle = tmpl.title;
+          tmpl.items.forEach(function(it){
+            item.subitems.push({ id: uid(), text: it.text, priority: it.priority || "M", notes:"", done:false });
+          });
+          renderChecklist();
+          save();
+        }
+        tplPicker.value = "";
+      });
+      addRowGroup.appendChild(tplPicker);
+    }
+
+    box.appendChild(addRowGroup);
+
+    row.appendChild(box);
+  }
+
+  function focusLastSubInput(itemId){
+    var rowEl = sectionsEl.querySelector('.row[data-item-id="'+itemId+'"]');
+    if(!rowEl) return;
+    var subs = rowEl.querySelectorAll(".sub-text");
+    if(subs.length) subs[subs.length - 1].focus();
+  }
+
+  function renderRow(section, item){
+    var isYesNo = item.type === "yesno";
+    var row = document.createElement("div");
+    row.className = "row" + (item.done ? " done" : "") + (isYesNo ? " type-yesno" : "");
+    row.setAttribute("data-priority", item.priority);
+    row.setAttribute("data-item-id", item.id);
+
+    if(isYesNo){
+      var ynWrap = document.createElement("div");
+      ynWrap.className = "yn-toggle";
+
+      var yesBtn = document.createElement("button");
+      yesBtn.type = "button";
+      yesBtn.className = "yn-btn yes" + (item.answer === "yes" ? " active" : "");
+      yesBtn.textContent = "Y";
+      yesBtn.title = "Yes";
+
+      var noBtn = document.createElement("button");
+      noBtn.type = "button";
+      noBtn.className = "yn-btn no" + (item.answer === "no" ? " active" : "");
+      noBtn.textContent = "N";
+      noBtn.title = "No";
+
+      yesBtn.addEventListener("click", function(){
+        item.answer = item.answer === "yes" ? null : "yes";
+        item.done = item.answer !== null;
+        save();
+        renderChecklist();
+      });
+      noBtn.addEventListener("click", function(){
+        item.answer = item.answer === "no" ? null : "no";
+        item.done = item.answer !== null;
+        save();
+        renderChecklist();
+      });
+
+      ynWrap.appendChild(yesBtn);
+      ynWrap.appendChild(noBtn);
+      row.appendChild(ynWrap);
+    } else {
+      var check = document.createElement("button");
+      check.type = "button";
+      check.className = "check" + (item.done ? " checked" : "");
+      check.setAttribute("aria-label", "Toggle complete");
+      check.addEventListener("click", function(){
+        item.done = !item.done;
+        check.classList.toggle("checked", item.done);
+        row.classList.toggle("done", item.done);
+        updateProgress();
+        save();
+      });
+      row.appendChild(check);
+    }
+
+    var contentWrap = document.createElement("div");
+    contentWrap.className = "content-wrap";
+
+    var text = document.createElement("input");
+    text.className = "item-text";
+    text.value = item.text;
+    text.spellcheck = false;
+    text.addEventListener("input", function(){
+      item.text = text.value;
+      save();
+    });
+    contentWrap.appendChild(text);
+
+    if(item.desc){
+      var descEl = document.createElement("textarea");
+      descEl.className = "item-desc";
+      descEl.rows = 1;
+      descEl.spellcheck = false;
+      descEl.value = item.desc;
+      function autoGrowItemDesc(){ descEl.style.height = "auto"; descEl.style.height = descEl.scrollHeight + "px"; }
+      descEl.addEventListener("input", function(){
+        item.desc = descEl.value;
+        save();
+        autoGrowItemDesc();
+      });
+      contentWrap.appendChild(descEl);
+      requestAnimationFrame(autoGrowItemDesc);
+    }
+
+    var typeToggle = document.createElement("button");
+    typeToggle.type = "button";
+    typeToggle.className = "item-type-toggle";
+    typeToggle.textContent = isYesNo ? "Make this a checkbox" : "Make this Yes / No";
+    typeToggle.addEventListener("click", function(){
+      item.type = isYesNo ? "checkbox" : "yesno";
+      if(item.type === "yesno"){
+        item.answer = null;
+        item.done = false;
+      } else {
+        item.answer = null;
+      }
+      save();
+      renderChecklist();
+    });
+    contentWrap.appendChild(typeToggle);
+
+    row.appendChild(contentWrap);
+
+    var pri = document.createElement("select");
+    pri.className = "priority";
+    pri.setAttribute("data-pri", item.priority);
+    ["H","M","L"].forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p; opt.textContent = p;
+      if(p === item.priority) opt.selected = true;
+      pri.appendChild(opt);
+    });
+    pri.addEventListener("change", function(){
+      item.priority = pri.value;
+      pri.setAttribute("data-pri", item.priority);
+      row.setAttribute("data-priority", item.priority);
+      applyFilter();
+      save();
+    });
+    row.appendChild(pri);
+
+    if(isYesNo){
+      var subBtnSpacer = document.createElement("span");
+      subBtnSpacer.style.gridColumn = "5";
+      subBtnSpacer.style.gridRow = "1";
+      row.appendChild(subBtnSpacer);
+    } else {
+      var subBtn = document.createElement("button");
+      subBtn.type = "button";
+      subBtn.className = "sub-btn" + (item.subitems.length ? " has-subs" : "");
+      subBtn.textContent = "+";
+      subBtn.title = item.subitems.length ? "Add another item to the subsection" : "Create a subsection";
+      subBtn.addEventListener("click", function(){
+        item.subitems.push(buildSubitem());
+        renderChecklist();
+        save();
+        focusLastSubInput(item.id);
+      });
+      row.appendChild(subBtn);
+    }
+
+    var taskBtn = document.createElement("button");
+    taskBtn.type = "button";
+    taskBtn.className = "task-btn" + (item.linkedTaskId ? " linked" : "");
+    taskBtn.textContent = item.linkedTaskId ? "\u2192 Task" : "+ Task";
+    taskBtn.title = item.linkedTaskId ? "Open in Docket" : "Add as a task in Docket, under this checklist's matter";
+    taskBtn.addEventListener("click", function(){
+      if(!window.__DOCKET__) return;
+      if(item.linkedTaskId){
+        window.__DOCKET__.openTask(item.linkedTaskId);
+        if(window.__activateApp) window.__activateApp("tasks");
+        return;
+      }
+      if(!item.text || !item.text.trim()){ alert("Add item text first."); return; }
+      var cs2 = activeChecklist();
+      if(!cs2 || !cs2.matterId){
+        alert("Link this checklist to a matter first \u2014 use the Matter field above the checklist \u2014 then add items as tasks.");
+        return;
+      }
+      var notesParts = [];
+      if(item.desc) notesParts.push(item.desc);
+      if(item.notes) notesParts.push(item.notes);
+      var sectionLabel = (section.title || "").trim();
+      var prefix = sectionLabel && sectionLabel.toLowerCase() !== "checklist" ? sectionLabel + " \u2014 " : "";
+      var newId = window.__DOCKET__.addTaskFromChecklistItem({
+        matterId: cs2.matterId,
+        title: prefix + item.text,
+        priority: item.priority,
+        notes: notesParts.join("\n\n"),
+        done: item.done,
+        steps: (item.subitems || []).filter(function(s){ return (s.text||"").trim(); }).map(function(s){ return { text: s.text, done: !!s.done }; })
+      });
+      item.linkedTaskId = newId;
+      save();
+      renderChecklist();
+    });
+    row.appendChild(taskBtn);
+
+    var del = document.createElement("button");
+    del.type = "button";
+    del.className = "del-btn";
+    del.innerHTML = "&times;";
+    del.title = "Remove item";
+    del.addEventListener("click", function(){
+      var idx = section.items.indexOf(item);
+      if(idx > -1) section.items.splice(idx, 1);
+      renderChecklist();
+      save();
+    });
+    row.appendChild(del);
+
+    var notes = document.createElement("input");
+    notes.className = "note-line";
+    notes.placeholder = "Notes";
+    notes.value = item.notes || "";
+    notes.addEventListener("input", function(){
+      item.notes = notes.value;
+      save();
+    });
+    row.appendChild(notes);
+
+    renderSubsection(item, row);
+
+    return row;
+  }
+
+  function sectionTotals(s){
+    var total = 0, done = 0;
+    s.items.forEach(function(it){
+      var t = itemTotals(it);
+      total += t.total; done += t.done;
+    });
+    return { total: total, done: done };
+  }
+
+  function updateProgress(){
+    var cs = activeChecklist();
+    if(!cs) return;
+    var totals = checklistTotals(cs);
+    progressDoneEl.textContent = totals.done;
+    progressTotalEl.textContent = totals.total;
+    cs.sections.forEach(function(s, idx){
+      var el = sectionsEl.querySelector('[data-section-index="'+idx+'"] .phase-count');
+      if(el){
+        var t = sectionTotals(s);
+        el.textContent = t.done + " / " + t.total;
+      }
+    });
+    renderSidebar();
+  }
+
+  function renderSectionLinkRow(section, container){
+    container.innerHTML = "";
+    if(section.linkedInstructionId){
+      var linkedDef = instructionDefById(section.linkedInstructionId);
+      var status = document.createElement("span");
+      if(linkedDef){
+        status.innerHTML = "Linked to: <b>" + escapeHtml(linkedDef.title) + "</b>";
+      } else {
+        status.textContent = "Linked to an instruction topic that no longer exists.";
+      }
+      container.appendChild(status);
+
+      if(linkedDef){
+        var viewBtn = document.createElement("button");
+        viewBtn.type = "button";
+        viewBtn.className = "link-action";
+        viewBtn.textContent = "View";
+        viewBtn.addEventListener("click", function(){
+          state.view = "instructions";
+          state.activeInstructionId = linkedDef.id;
+          document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+            b.classList.toggle("active", b.getAttribute("data-view") === "instructions");
+          });
+          save();
+          renderSidebar();
+          renderMain();
+          window.scrollTo(0,0);
+        });
+        container.appendChild(viewBtn);
+      }
+
+      var unlinkBtn = document.createElement("button");
+      unlinkBtn.type = "button";
+      unlinkBtn.className = "link-action danger";
+      unlinkBtn.textContent = "Unlink";
+      unlinkBtn.addEventListener("click", function(){
+        section.linkedInstructionId = null;
+        save();
+        renderSectionLinkRow(section, container);
+        renderSidebar();
+      });
+      container.appendChild(unlinkBtn);
+    } else {
+      var status2 = document.createElement("span");
+      status2.textContent = "Not linked to an instruction topic.";
+      container.appendChild(status2);
+
+      var linkBtn = document.createElement("button");
+      linkBtn.type = "button";
+      linkBtn.className = "link-action";
+      linkBtn.textContent = "Link…";
+      linkBtn.addEventListener("click", function(){
+        var sel = document.createElement("select");
+        populateInstructionSelect(sel, "");
+        var confirmBtn = document.createElement("button");
+        confirmBtn.type = "button";
+        confirmBtn.className = "link-action";
+        confirmBtn.textContent = "Set link";
+        confirmBtn.addEventListener("click", function(){
+          if(sel.value){
+            section.linkedInstructionId = sel.value;
+            var linkedDef2 = instructionDefById(sel.value);
+            if(linkedDef2){
+              var copiedItems = [];
+              linkedDef2.sections.forEach(function(s){
+                s.items.forEach(function(raw){ copiedItems.push(buildItemState(raw)); });
+              });
+              section.items = section.items.concat(copiedItems);
+            }
+            save();
+            renderChecklist();
+            renderSidebar();
+          }
+        });
+        container.innerHTML = "";
+        container.appendChild(sel);
+        container.appendChild(confirmBtn);
+      });
+      container.appendChild(linkBtn);
+    }
+  }
+
+  function escapeHtml(s){
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderChecklist(){
+    var cs = activeChecklist();
+    if(!cs){
+      checklistEditorEl.style.display = "none";
+      checklistEmptyEl.style.display = "block";
+      progressDoneEl.textContent = "0";
+      progressTotalEl.textContent = "0";
+      return;
+    }
+    checklistEmptyEl.style.display = "none";
+    checklistEditorEl.style.display = "block";
+
+    docTitleEl.textContent = cs.title;
+
+    populateMatterLinkSelect(cs.matterId);
+    var linkedMatter = (cs.matterId && window.__DOCKET__) ? window.__DOCKET__.getMatterById(cs.matterId) : null;
+    metaClientEl.value = linkedMatter ? linkedMatter.name : cs.meta.client;
+    metaCaseNumberEl.value = linkedMatter ? (linkedMatter.number || "") : cs.meta.caseNumber;
+    metaClientEl.readOnly = !!linkedMatter;
+    metaCaseNumberEl.readOnly = !!linkedMatter;
+    metaStaffEl.value = cs.meta.staff;
+    metaDateEl.value = cs.meta.date;
+    updateMetaVisibility();
+
+    sectionsEl.innerHTML = "";
+    cs.sections.forEach(function(section, idx){
+      var phase = document.createElement("section");
+      phase.className = "phase";
+      phase.setAttribute("data-section-index", idx);
+
+      var head = document.createElement("div");
+      head.className = "phase-head";
+
+      var title = document.createElement("input");
+      title.className = "phase-title";
+      title.value = section.title;
+      title.addEventListener("input", function(){
+        section.title = title.value;
+        save();
+      });
+      head.appendChild(title);
+
+      var count = document.createElement("span");
+      count.className = "phase-count";
+      var t0 = sectionTotals(section);
+      count.textContent = t0.done + " / " + t0.total;
+      head.appendChild(count);
+
+      var secDel = document.createElement("button");
+      secDel.type = "button";
+      secDel.className = "section-del";
+      secDel.innerHTML = "&times;";
+      secDel.title = "Remove section";
+      secDel.addEventListener("click", function(){
+        var i = cs.sections.indexOf(section);
+        if(i > -1) cs.sections.splice(i, 1);
+        renderChecklist();
+        save();
+      });
+      head.appendChild(secDel);
+
+      phase.appendChild(head);
+
+      var sectionLinkRow = document.createElement("div");
+      sectionLinkRow.className = "link-row";
+      renderSectionLinkRow(section, sectionLinkRow);
+      phase.appendChild(sectionLinkRow);
+
+      var rows = document.createElement("div");
+      rows.className = "rows";
+      section.items.forEach(function(item){
+        rows.appendChild(renderRow(section, item));
+      });
+
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "add-item";
+      addBtn.textContent = "+ Add item";
+      addBtn.addEventListener("click", function(){
+        var newItem = { id: uid(), text:"", priority:"M", desc:"", done:false, notes:"", subitems:[], subsectionTitle:"", type:"checkbox", answer:null };
+        section.items.push(newItem);
+        renderChecklist();
+        save();
+        var newInput = sectionsEl.querySelector('[data-item-id="'+newItem.id+'"] .item-text');
+        if(newInput) newInput.focus();
+      });
+      rows.appendChild(addBtn);
+
+      phase.appendChild(rows);
+      sectionsEl.appendChild(phase);
+    });
+
+    var addRowGroup = document.createElement("div");
+    addRowGroup.className = "add-row-group";
+
+    var addSectionBtn = document.createElement("button");
+    addSectionBtn.type = "button";
+    addSectionBtn.className = "add-section";
+    addSectionBtn.textContent = "+ Add blank section";
+    addSectionBtn.addEventListener("click", function(){
+      cs.sections.push({ title: "New section", linkedInstructionId: null, items: [] });
+      renderChecklist();
+      save();
+      var titles = sectionsEl.querySelectorAll(".phase-title");
+      if(titles.length){ titles[titles.length-1].focus(); titles[titles.length-1].select(); }
+    });
+    addRowGroup.appendChild(addSectionBtn);
+
+    if(state.sectionTemplates.length){
+      var tplPicker = document.createElement("select");
+      tplPicker.className = "tpl-picker";
+      populateTemplateSelect(tplPicker, "section");
+      tplPicker.addEventListener("change", function(){
+        var tmpl = sectionTemplateById(tplPicker.value);
+        if(tmpl){
+          cs.sections.push({
+            title: tmpl.title,
+            linkedInstructionId: null,
+            items: tmpl.items.map(buildItemState)
+          });
+          renderChecklist();
+          save();
+        }
+        tplPicker.value = "";
+      });
+      addRowGroup.appendChild(tplPicker);
+    }
+
+    sectionsEl.appendChild(addRowGroup);
+
+    applyFilter();
+    updateProgress();
+  }
+
+  function renderInstrItemRow(items, it, n){
+    var row = document.createElement("div");
+    row.className = "instr-item";
+
+    var num = document.createElement("div");
+    num.className = "instr-num";
+    num.textContent = (n < 10 ? "0" : "") + n;
+    row.appendChild(num);
+
+    var body = document.createElement("div");
+    body.className = "instr-body";
+
+    var text = document.createElement("input");
+    text.className = "instr-text-input";
+    text.placeholder = "Item text";
+    text.value = it.text;
+    text.spellcheck = false;
+    text.addEventListener("input", function(){
+      it.text = text.value;
+      save();
+    });
+    body.appendChild(text);
+
+    var desc = document.createElement("textarea");
+    desc.className = "instr-desc-input";
+    desc.placeholder = "Helper text shown under this item (optional)";
+    desc.rows = 1;
+    desc.spellcheck = false;
+    desc.value = it.desc || "";
+    function autoGrowInstrDesc(){ desc.style.height = "auto"; desc.style.height = desc.scrollHeight + "px"; }
+    desc.addEventListener("input", function(){
+      it.desc = desc.value;
+      save();
+      autoGrowInstrDesc();
+    });
+    body.appendChild(desc);
+    requestAnimationFrame(autoGrowInstrDesc);
+
+    row.appendChild(body);
+
+    var pri = document.createElement("select");
+    pri.className = "instr-pri";
+    pri.setAttribute("data-pri", it.priority);
+    ["H","M","L"].forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p; opt.textContent = p;
+      if(p === it.priority) opt.selected = true;
+      pri.appendChild(opt);
+    });
+    pri.addEventListener("change", function(){
+      it.priority = pri.value;
+      pri.setAttribute("data-pri", it.priority);
+      save();
+    });
+    row.appendChild(pri);
+
+    var del = document.createElement("button");
+    del.type = "button";
+    del.className = "instr-item-del";
+    del.innerHTML = "&times;";
+    del.title = "Remove item";
+    del.addEventListener("click", function(){
+      var idx = items.indexOf(it);
+      if(idx > -1) items.splice(idx, 1);
+      renderInstructionEditor();
+      renderSidebar();
+      save();
+    });
+    row.appendChild(del);
+
+    return row;
+  }
+
+  function renderInstructionEditor(){
+    var def = activeInstruction();
+    if(!def){
+      instructionEditorEl.style.display = "none";
+      instructionEmptyEl.style.display = "block";
+      return;
+    }
+    instructionEmptyEl.style.display = "none";
+    instructionEditorEl.style.display = "block";
+
+    instructionsViewEl.style.setProperty("--onp-color", colorForInstructionTopic(def));
+    populateInstrCategorySelect();
+    updateInstrCategorySwatch();
+    instrCategoryFormEl.classList.remove("open");
+
+    instrTitleInputEl.value = def.title;
+
+    instrSectionsEl.innerHTML = "";
+    def.sections.forEach(function(section){
+      var sec = document.createElement("div");
+      sec.className = "instr-section";
+
+      var head = document.createElement("div");
+      head.className = "instr-section-head";
+
+      var titleInput = document.createElement("input");
+      titleInput.className = "instr-title";
+      titleInput.placeholder = "Section title";
+      titleInput.value = section.title;
+      titleInput.addEventListener("input", function(){
+        section.title = titleInput.value;
+        save();
+      });
+      head.appendChild(titleInput);
+
+      var secDel = document.createElement("button");
+      secDel.type = "button";
+      secDel.className = "instr-section-del";
+      secDel.innerHTML = "&times;";
+      secDel.title = "Remove section";
+      secDel.addEventListener("click", function(){
+        var idx = def.sections.indexOf(section);
+        if(idx > -1) def.sections.splice(idx, 1);
+        renderInstructionEditor();
+        renderSidebar();
+        save();
+      });
+      head.appendChild(secDel);
+
+      sec.appendChild(head);
+
+      section.items.forEach(function(item, idx){
+        sec.appendChild(renderInstrItemRow(section.items, item, idx + 1));
+      });
+
+      var addItemBtn = document.createElement("button");
+      addItemBtn.type = "button";
+      addItemBtn.className = "instr-add-item";
+      addItemBtn.textContent = "+ Add item";
+      addItemBtn.addEventListener("click", function(){
+        section.items.push({ text:"", priority:"M", desc:"" });
+        renderInstructionEditor();
+        renderSidebar();
+        save();
+        var inputs = instrSectionsEl.querySelectorAll(".instr-text-input");
+        if(inputs.length) inputs[inputs.length-1].focus();
+      });
+      sec.appendChild(addItemBtn);
+
+      instrSectionsEl.appendChild(sec);
+    });
+
+    var addSectionBtn = document.createElement("button");
+    addSectionBtn.type = "button";
+    addSectionBtn.className = "instr-add-section";
+    addSectionBtn.textContent = "+ Add section";
+    addSectionBtn.addEventListener("click", function(){
+      def.sections.push({ title: "New section", items: [] });
+      renderInstructionEditor();
+      var titles = instrSectionsEl.querySelectorAll(".instr-title");
+      if(titles.length){ titles[titles.length-1].focus(); titles[titles.length-1].select(); }
+      save();
+    });
+    instrSectionsEl.appendChild(addSectionBtn);
+  }
+
+  // items: the array `it` lives in (for delete). opts: {hasDesc, hasType, placeholder}
+  function renderTplItemRow(items, it, opts){
+    opts = opts || {};
+    var row = document.createElement("div");
+    row.className = "tpl-row";
+
+    var contentWrap = document.createElement("div");
+    contentWrap.className = "tpl-content-wrap";
+
+    var text = document.createElement("input");
+    text.className = "tpl-text";
+    text.placeholder = opts.placeholder || "Item text";
+    text.value = it.text;
+    text.spellcheck = false;
+    text.addEventListener("input", function(){
+      it.text = text.value;
+      save();
+    });
+    contentWrap.appendChild(text);
+
+    if(opts.hasDesc){
+      var desc = document.createElement("textarea");
+      desc.className = "tpl-desc-line";
+      desc.placeholder = "Helper text shown under this item (optional)";
+      desc.rows = 1;
+      desc.spellcheck = false;
+      desc.value = it.desc || "";
+      function autoGrowTplDesc(){ desc.style.height = "auto"; desc.style.height = desc.scrollHeight + "px"; }
+      desc.addEventListener("input", function(){
+        it.desc = desc.value;
+        save();
+        autoGrowTplDesc();
+      });
+      contentWrap.appendChild(desc);
+      requestAnimationFrame(autoGrowTplDesc);
+    }
+
+    if(opts.hasType){
+      var typeToggle = document.createElement("button");
+      typeToggle.type = "button";
+      typeToggle.className = "item-type-toggle";
+      var isYesNo = it.type === "yesno";
+      typeToggle.textContent = isYesNo ? "Make this a checkbox" : "Make this Yes / No";
+      typeToggle.addEventListener("click", function(){
+        it.type = isYesNo ? "checkbox" : "yesno";
+        if(it.type === "yesno" && !Array.isArray(it.subitems)) it.subitems = [];
+        save();
+        renderTemplateEditor();
+      });
+      contentWrap.appendChild(typeToggle);
+    }
+
+    row.appendChild(contentWrap);
+
+    var pri = document.createElement("select");
+    pri.className = "tpl-priority";
+    pri.setAttribute("data-pri", it.priority);
+    ["H","M","L"].forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p; opt.textContent = p;
+      if(p === it.priority) opt.selected = true;
+      pri.appendChild(opt);
+    });
+    pri.addEventListener("change", function(){
+      it.priority = pri.value;
+      pri.setAttribute("data-pri", it.priority);
+      save();
+    });
+    row.appendChild(pri);
+
+    var del = document.createElement("button");
+    del.type = "button";
+    del.className = "tpl-del";
+    del.innerHTML = "&times;";
+    del.title = "Remove item";
+    del.addEventListener("click", function(){
+      var idx = items.indexOf(it);
+      if(idx > -1) items.splice(idx, 1);
+      renderTemplateEditor();
+      renderSidebar();
+      save();
+    });
+    row.appendChild(del);
+
+    return row;
+  }
+
+  // The "if yes" content authored inside a section-template item — mirrors a
+  // real checklist's subsection editor, but always visible here (nothing to
+  // "answer" yet; this just defines what will show once someone picks Yes).
+  function renderTplSubsectionEditor(it){
+    var box = document.createElement("div");
+    box.className = "subsection";
+
+    var head = document.createElement("div");
+    head.className = "subsection-head";
+
+    var titleInput = document.createElement("input");
+    titleInput.className = "subsection-title";
+    titleInput.placeholder = "If yes…";
+    titleInput.value = it.subsectionTitle || "";
+    titleInput.addEventListener("input", function(){
+      it.subsectionTitle = titleInput.value;
+      save();
+    });
+    head.appendChild(titleInput);
+
+    var count = document.createElement("span");
+    count.className = "subsection-count";
+    count.textContent = it.subitems.length + (it.subitems.length === 1 ? " item" : " items");
+    head.appendChild(count);
+
+    box.appendChild(head);
+
+    var list = document.createElement("div");
+    it.subitems.forEach(function(sub){
+      list.appendChild(renderTplItemRow(it.subitems, sub, { placeholder: "Follow-up item text" }));
+    });
+    box.appendChild(list);
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-sub-item";
+    addBtn.textContent = "+ Add follow-up item";
+    addBtn.addEventListener("click", function(){
+      it.subitems.push({ text:"", priority:"M" });
+      renderTemplateEditor();
+      save();
+    });
+    box.appendChild(addBtn);
+
+    return box;
+  }
+
+  function renderTplItemEntry(items, it, opts){
+    var entry = document.createElement("div");
+    entry.className = "tpl-entry";
+    entry.appendChild(renderTplItemRow(items, it, opts));
+    if(opts.hasType && it.type === "yesno"){
+      if(!Array.isArray(it.subitems)) it.subitems = [];
+      entry.appendChild(renderTplSubsectionEditor(it));
+    }
+    return entry;
+  }
+
+  function renderTemplateEditor(){
+    var active = activeTemplate();
+    if(!active){
+      templateEditorEl.style.display = "none";
+      templateEmptyEl.style.display = "block";
+      return;
+    }
+    templateEmptyEl.style.display = "none";
+    templateEditorEl.style.display = "block";
+
+    var tmpl = active.tmpl;
+    var isSection = active.type === "section";
+    templateTypeLabelEl.textContent = isSection ? "Section template" : "Subsection template";
+    templateTitleEl.value = tmpl.title;
+    templateTitleEl.placeholder = isSection ? "Section title" : "Subsection title";
+
+    templateCategoryEl.value = tmpl.category || "";
+    templateCategoryOptionsEl.innerHTML = "";
+    templateCategories(active.type).forEach(function(c){
+      var opt = document.createElement("option");
+      opt.value = c;
+      templateCategoryOptionsEl.appendChild(opt);
+    });
+
+    var rowOpts = { hasDesc: isSection, hasType: isSection, placeholder: isSection ? "Item text" : "Follow-up item text" };
+
+    templateItemsWrapEl.innerHTML = "";
+    tmpl.items.forEach(function(it){
+      templateItemsWrapEl.appendChild(renderTplItemEntry(tmpl.items, it, rowOpts));
+    });
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-item";
+    addBtn.textContent = "+ Add item";
+    addBtn.addEventListener("click", function(){
+      tmpl.items.push(isSection ? { text:"", priority:"M", desc:"", type:"checkbox", subsectionTitle:"", subitems:[] } : { text:"", priority:"M" });
+      renderTemplateEditor();
+      renderSidebar();
+      save();
+      var inputs = templateItemsWrapEl.querySelectorAll(".tpl-text");
+      if(inputs.length) inputs[inputs.length-1].focus();
+    });
+    templateItemsWrapEl.appendChild(addBtn);
+  }
+
+  templateTitleEl.addEventListener("input", function(){
+    var active = activeTemplate();
+    if(!active) return;
+    active.tmpl.title = templateTitleEl.value;
+    save();
+    renderSidebar();
+  });
+
+  templateCategoryEl.addEventListener("input", function(){
+    var active = activeTemplate();
+    if(!active) return;
+    active.tmpl.category = templateCategoryEl.value;
+    save();
+    renderSidebar();
+  });
+
+  deleteTemplateBtn.addEventListener("click", function(){
+    var active = activeTemplate();
+    if(!active) return;
+    var label = active.type === "section" ? "section template" : "subsection template";
+    if(!confirm('Delete "' + active.tmpl.title + '" (' + label + ')? Checklists that already used it keep their own copy of the content — this only removes it from the library.')) return;
+    var list = templateListForType(active.type);
+    var idx = list.indexOf(active.tmpl);
+    if(idx > -1) list.splice(idx, 1);
+    state.activeTemplateId = null;
+    state.activeTemplateType = null;
+    save();
+    renderSidebar();
+    renderMain();
+  });
+
+  function renderMain(){
+    checklistViewEl.style.display = "none";
+    instructionsViewEl.style.display = "none";
+    templatesViewEl.style.display = "none";
+    if(state.view === "instructions"){
+      instructionsViewEl.style.display = "block";
+      renderInstructionEditor();
+    } else if(state.view === "templates"){
+      templatesViewEl.style.display = "block";
+      renderTemplateEditor();
+    } else {
+      checklistViewEl.style.display = "block";
+      renderChecklist();
+    }
+  }
+
+  // ---- meta field bindings ----
+  metaClientEl.addEventListener("input", function(){ activeChecklist().meta.client = metaClientEl.value; save(); renderSidebar(); });
+  metaCaseNumberEl.addEventListener("input", function(){ activeChecklist().meta.caseNumber = metaCaseNumberEl.value; save(); });
+
+  function populateMatterLinkSelect(selectedId){
+    metaMatterLinkEl.innerHTML = "";
+    var none = document.createElement("option");
+    none.value = "";
+    none.textContent = "\u2014 Not linked \u2014";
+    metaMatterLinkEl.appendChild(none);
+    var matters = window.__DOCKET__ ? window.__DOCKET__.getMatters() : [];
+    matters.forEach(function(m){
+      var opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.name + (m.number ? " \u00b7 " + m.number : "");
+      if(m.id === selectedId) opt.selected = true;
+      metaMatterLinkEl.appendChild(opt);
+    });
+    var addNew = document.createElement("option");
+    addNew.value = "__new__";
+    addNew.textContent = "+ New matter\u2026";
+    metaMatterLinkEl.appendChild(addNew);
+  }
+  metaMatterLinkEl.addEventListener("change", function(){
+    var cs = activeChecklist();
+    if(!cs || !window.__DOCKET__) return;
+    if(metaMatterLinkEl.value === "__new__"){
+      var name = prompt("New matter name:");
+      if(!name || !name.trim()){ renderChecklist(); return; }
+      var num = prompt("Matter number (optional):") || "";
+      var m = window.__DOCKET__.addMatter(name.trim(), num.trim());
+      cs.matterId = m.id;
+    } else {
+      cs.matterId = metaMatterLinkEl.value || null;
+    }
+    save();
+    renderChecklist();
+    renderSidebar();
+  });
+  metaStaffEl.addEventListener("input", function(){ activeChecklist().meta.staff = metaStaffEl.value; save(); });
+  metaDateEl.addEventListener("input", function(){ activeChecklist().meta.date = metaDateEl.value; save(); });
+
+  function updateMetaVisibility(){
+    var cs = activeChecklist();
+    if(!cs) return;
+    var show = cs.showMeta !== false;
+    metaGridEl.classList.toggle("hidden", !show);
+    metaShowBtn.classList.toggle("visible", !show);
+  }
+  metaHideBtn.addEventListener("click", function(){
+    activeChecklist().showMeta = false;
+    save();
+    updateMetaVisibility();
+  });
+  metaShowBtn.addEventListener("click", function(){
+    activeChecklist().showMeta = true;
+    save();
+    updateMetaVisibility();
+  });
+
+  docTitleEl.addEventListener("input", function(){
+    var cs = activeChecklist();
+    if(cs) cs.title = docTitleEl.textContent;
+    save();
+    renderSidebar();
+  });
+
+  // ---- layout ----
+  function setLayout(layout){
+    state.layout = layout;
+    document.querySelectorAll(".seg-opt[data-layout]").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-layout") === layout);
+    });
+    sectionsEl.classList.toggle("two-col", layout === "two");
+    mainWrapEl.classList.toggle("compact", layout === "compact");
+    save();
+  }
+  document.querySelectorAll(".seg-opt[data-layout]").forEach(function(b){
+    b.addEventListener("click", function(){ setLayout(b.getAttribute("data-layout")); });
+  });
+
+  // ---- priority filter buttons ----
+  var priFilterBtns = Array.from(document.querySelectorAll("#priFilters .toggle-chip"));
+  priFilterBtns.forEach(function(btn){
+    var level = btn.getAttribute("data-pri");
+    btn.addEventListener("click", function(){
+      state.priorityFilters[level] = !state.priorityFilters[level];
+      btn.classList.toggle("active", state.priorityFilters[level]);
+      applyFilter();
+      save();
+    });
+  });
+
+  // ---- view toggle ----
+  document.querySelectorAll(".view-toggle button[data-view]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.view = btn.getAttribute("data-view");
+      document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+        b.classList.toggle("active", b === btn);
+      });
+      save();
+      renderSidebar();
+      renderMain();
+    });
+  });
+
+  // ---- reset (active checklist only) ----
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    var cs = activeChecklist();
+    if(!cs) return;
+    if(!confirm('Start a new pass through "' + cs.title + '"? This clears checkmarks, notes, and the fields above for THIS checklist only. Item text and priorities are kept.')) return;
+    cs.meta = { client:"", caseNumber:"", staff:"", date:"" };
+    cs.sections.forEach(function(s){
+      s.items.forEach(function(it){
+        it.done = false; it.notes = ""; it.answer = null;
+        it.subitems.forEach(function(sub){ sub.done = false; });
+      });
+    });
+    save();
+    renderChecklist();
+    renderSidebar();
+  });
+
+  // ---- delete checklist ----
+  deleteChecklistBtn.addEventListener("click", function(){
+    var cs = activeChecklist();
+    if(!cs) return;
+    if(!confirm('Delete "' + cs.title + '"? This removes the checklist entirely, including its notes and progress. This cannot be undone.')) return;
+    var idx = state.checklists.indexOf(cs);
+    if(idx > -1) state.checklists.splice(idx, 1);
+    state.activeChecklistId = state.checklists.length ? state.checklists[0].id : null;
+    save();
+    renderSidebar();
+    renderMain();
+  });
+
+  // ---- print ----
+  document.getElementById("printBtn").addEventListener("click", function(){
+    window.print();
+  });
+
+  saveChecklistFileBtn.addEventListener("click", function(){
+    var cl = activeChecklist();
+    if(cl) exportChecklist(cl);
+  });
+  loadChecklistFileBtn.addEventListener("click", function(){ loadChecklistFileInput.value = ""; loadChecklistFileInput.click(); });
+  loadChecklistFileInput.addEventListener("change", function(){
+    var file = loadChecklistFileInput.files && loadChecklistFileInput.files[0];
+    if(!file) return;
+    readJSONFile(file, function(parsed){
+      if(parsed && parsed.__appExport === "trainingChecklistsApp" && parsed.__exportType === "checklist"){
+        importChecklist(parsed.checklist);
+      } else if(parsed && parsed.__appExport === "trainingChecklistsApp" && parsed.__exportType === "full"){
+        alert("That file is a full app backup, not a single checklist. Use \"Load from File\" in the top bar instead.");
+      } else {
+        alert("That file doesn't look like a saved checklist.");
+      }
+    }, function(){
+      alert("Couldn't read that file — it may not be valid JSON.");
+    });
+  });
+
+  // ---- rev ----
+  var revInput = document.getElementById("revInput");
+  revInput.value = state.rev || "1.0";
+  revInput.addEventListener("input", function(){ state.rev = revInput.value; save(); });
+
+  // ---- init ----
+  priFilterBtns.forEach(function(btn){
+    var level = btn.getAttribute("data-pri");
+    btn.classList.toggle("active", !!state.priorityFilters[level]);
+  });
+  setLayout(state.layout || "one");
+  document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
+    b.classList.toggle("active", b.getAttribute("data-view") === state.view);
+  });
+
+  renderSidebar();
+  renderMain();
+
+  window.__CHECKLISTS__ = {
+    getChecklistsForMatter: function(matterId){
+      return state.checklists.filter(function(c){ return c.matterId === matterId; });
+    },
+    openChecklist: function(id){
+      state.activeChecklistId = id;
+      switchToView("checklist");
+      renderSidebar();
+      renderMain();
+    },
+    refresh: function(){ renderSidebar(); renderMain(); }
+  };
+})();
+})();
+
+(function(){
+  function activateApp(app){
+    document.getElementById("tasksRoot").style.display = app === "tasks" ? "" : "none";
+    document.getElementById("checklistsHost").style.display = app === "checklists" ? "block" : "none";
+    document.querySelectorAll("#appSwitcher .switch-btn").forEach(b => {
+      b.classList.toggle("active", b.getAttribute("data-app") === app);
+    });
+    if (app === "tasks" && window.__DOCKET__) window.__DOCKET__.refresh();
+    if (app === "checklists" && window.__CHECKLISTS__) window.__CHECKLISTS__.refresh();
+    try{ localStorage.setItem("docket.activeApp", app); }catch(e){}
+  }
+  window.__activateApp = activateApp;
+  document.querySelectorAll("#appSwitcher .switch-btn").forEach(b => {
+    b.addEventListener("click", () => activateApp(b.getAttribute("data-app")));
+  });
+  let initial = "tasks";
+  try{ initial = localStorage.getItem("docket.activeApp") || "tasks"; }catch(e){}
+  activateApp(initial);
+
+  // ---- draggable switcher ----
+  const switcherEl = document.getElementById("appSwitcher");
+  const gripEl = switcherEl.querySelector(".switcher-grip");
+
+  function clampPos(x, y){
+    const r = switcherEl.getBoundingClientRect();
+    const maxX = window.innerWidth - r.width - 4;
+    const maxY = window.innerHeight - r.height - 4;
+    return { x: Math.min(Math.max(x, 4), Math.max(maxX, 4)), y: Math.min(Math.max(y, 4), Math.max(maxY, 4)) };
+  }
+  function placeAt(x, y){
+    switcherEl.style.left = x + "px";
+    switcherEl.style.top = y + "px";
+    switcherEl.style.right = "auto";
+    switcherEl.style.transform = "none";
+  }
+  function savePos(x, y){
+    try{ localStorage.setItem("docket.switcherPos", JSON.stringify({ x, y })); }catch(e){}
+  }
+
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem("docket.switcherPos")); }catch(e){}
+  if (saved && typeof saved.x === "number" && typeof saved.y === "number"){
+    const p = clampPos(saved.x, saved.y);
+    placeAt(p.x, p.y);
+  }
+
+  let dragging = false, offX = 0, offY = 0;
+  gripEl.addEventListener("pointerdown", e => {
+    dragging = true;
+    switcherEl.classList.add("dragging");
+    const r = switcherEl.getBoundingClientRect();
+    offX = e.clientX - r.left;
+    offY = e.clientY - r.top;
+    gripEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  gripEl.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const p = clampPos(e.clientX - offX, e.clientY - offY);
+    placeAt(p.x, p.y);
+  });
+  function endDrag(e){
+    if (!dragging) return;
+    dragging = false;
+    switcherEl.classList.remove("dragging");
+    const r = switcherEl.getBoundingClientRect();
+    savePos(r.left, r.top);
+  }
+  gripEl.addEventListener("pointerup", endDrag);
+  gripEl.addEventListener("pointercancel", endDrag);
+  window.addEventListener("resize", () => {
+    const r = switcherEl.getBoundingClientRect();
+    const p = clampPos(r.left, r.top);
+    if (p.x !== r.left || p.y !== r.top) placeAt(p.x, p.y);
+  });
+})();
+</script>
+</body>
+</html>
