@@ -61,6 +61,8 @@
   .matter-group{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
   .matter-group-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-700);font-weight:700;padding:6px 2px 2px}
   .matter-subgroup-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:3px 2px 1px 14px}
+  .group-toggle{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;font-family:inherit}
+  .group-toggle:hover{color:var(--accent)}
   .matters-head{display:flex;align-items:baseline;gap:8px}
   .matters-head .manage-link{margin-left:auto;font-size:10px;color:var(--accent-700);border:0;background:none;text-decoration:underline;padding:0}
   .group-by-sel{margin-left:auto;font-size:10px;border:1px solid var(--border);border-radius:8px;padding:2px 4px;background:var(--surface);color:var(--muted)}
@@ -743,6 +745,7 @@ function loadState(){
       if (!Array.isArray(parsed.caseTypes)) parsed.caseTypes = [];
       if (!Array.isArray(parsed.insuranceTypes)) parsed.insuranceTypes = [];
       if (!parsed.matterGroupBy) parsed.matterGroupBy = "caseType";
+      if (!Array.isArray(parsed.collapsedGroups)) parsed.collapsedGroups = [];
       (parsed.tasks || []).forEach(t => {
         if (t.dueTime && !t.startTime){ t.startTime = t.dueTime; }
         delete t.dueTime;
@@ -768,7 +771,7 @@ function loadState(){
     ],
     filter: "today", matterFilter: null, sort: "due", query: "", selectedId: null,
     caseTypes: [], caseTypesOpen: false, editingMatterId: null,
-    insuranceTypes: [], insuranceTypesOpen: false, matterGroupBy: "caseType"
+    insuranceTypes: [], insuranceTypesOpen: false, matterGroupBy: "caseType", collapsedGroups: []
   };
 }
 
@@ -1216,6 +1219,21 @@ function el(tag, attrs, children){
 let dragId = null;
 let moreMenuOpen = false;
 
+function isGroupCollapsed(key){ return state.collapsedGroups.includes(key); }
+function toggleGroup(key){
+  state.collapsedGroups = isGroupCollapsed(key)
+    ? state.collapsedGroups.filter(k => k !== key)
+    : state.collapsedGroups.concat([key]);
+  save(); render();
+}
+function groupLabelEl(text, key, sub){
+  const collapsed = isGroupCollapsed(key);
+  return el("button", {
+    class: (sub ? "matter-subgroup-label" : "matter-group-label") + " group-toggle",
+    onclick: () => toggleGroup(key)
+  }, [(collapsed ? "▸ " : "▾ ") + text]);
+}
+
 function renderMatterRow(m, openTasks, indentPx){
   const active = state.matterFilter === m.id;
   const count = openTasks.filter(t => t.matterId === m.id).length;
@@ -1389,24 +1407,31 @@ function render(){
       const mattersOfType = state.matters.filter(m => m.caseTypeId === ct.id);
       if (!mattersOfType.length) return;
       mattersOfType.forEach(m => assignedIds.add(m.id));
+      const groupKey = "ct:" + ct.id;
       const group = el("div", { class: "matter-group" });
-      group.appendChild(el("div", { class: "matter-group-label" }, [ct.name]));
-      mattersOfType.filter(m => !m.caseSubtypeId || !findCaseSubtype(ct.id, m.caseSubtypeId)).forEach(m => {
-        group.appendChild(renderMatterRow(m, open, 0));
-      });
-      ct.subtypes.forEach(st => {
-        const subMatters = mattersOfType.filter(m => m.caseSubtypeId === st.id);
-        if (!subMatters.length) return;
-        group.appendChild(el("div", { class: "matter-subgroup-label" }, [st.name]));
-        subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
-      });
+      group.appendChild(groupLabelEl(ct.name, groupKey, false));
+      if (!isGroupCollapsed(groupKey)){
+        mattersOfType.filter(m => !m.caseSubtypeId || !findCaseSubtype(ct.id, m.caseSubtypeId)).forEach(m => {
+          group.appendChild(renderMatterRow(m, open, 0));
+        });
+        ct.subtypes.forEach(st => {
+          const subMatters = mattersOfType.filter(m => m.caseSubtypeId === st.id);
+          if (!subMatters.length) return;
+          const subKey = groupKey + ":st:" + st.id;
+          group.appendChild(groupLabelEl(st.name, subKey, true));
+          if (!isGroupCollapsed(subKey)) subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
+        });
+      }
       matterList.appendChild(group);
     });
     const uncategorized = state.matters.filter(m => !assignedIds.has(m.id));
     if (uncategorized.length){
       const group = el("div", { class: "matter-group" });
-      if (state.caseTypes.length) group.appendChild(el("div", { class: "matter-group-label" }, ["Uncategorized"]));
-      uncategorized.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      const ucKey = "ct:none";
+      if (state.caseTypes.length) group.appendChild(groupLabelEl("Uncategorized", ucKey, false));
+      if (!state.caseTypes.length || !isGroupCollapsed(ucKey)){
+        uncategorized.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      }
       matterList.appendChild(group);
     }
   } else if (state.matterGroupBy === "insurance"){
@@ -1415,31 +1440,37 @@ function render(){
     if (yesMatters.length){
       yesMatters.forEach(m => assignedIds.add(m.id));
       const group = el("div", { class: "matter-group" });
-      group.appendChild(el("div", { class: "matter-group-label" }, ["Has Insurance"]));
-      yesMatters.filter(m => !m.insuranceTypeId || !findInsuranceType(m.insuranceTypeId)).forEach(m => {
-        group.appendChild(renderMatterRow(m, open, 0));
-      });
-      state.insuranceTypes.forEach(it => {
-        const subMatters = yesMatters.filter(m => m.insuranceTypeId === it.id);
-        if (!subMatters.length) return;
-        group.appendChild(el("div", { class: "matter-subgroup-label" }, [it.name]));
-        subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
-      });
+      const yesKey = "ins:yes";
+      group.appendChild(groupLabelEl("Has Insurance", yesKey, false));
+      if (!isGroupCollapsed(yesKey)){
+        yesMatters.filter(m => !m.insuranceTypeId || !findInsuranceType(m.insuranceTypeId)).forEach(m => {
+          group.appendChild(renderMatterRow(m, open, 0));
+        });
+        state.insuranceTypes.forEach(it => {
+          const subMatters = yesMatters.filter(m => m.insuranceTypeId === it.id);
+          if (!subMatters.length) return;
+          const subKey = yesKey + ":" + it.id;
+          group.appendChild(groupLabelEl(it.name, subKey, true));
+          if (!isGroupCollapsed(subKey)) subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
+        });
+      }
       matterList.appendChild(group);
     }
     const noMatters = state.matters.filter(m => m.insuranceStatus === "no");
     if (noMatters.length){
       noMatters.forEach(m => assignedIds.add(m.id));
       const group = el("div", { class: "matter-group" });
-      group.appendChild(el("div", { class: "matter-group-label" }, ["No Insurance"]));
-      noMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      const noKey = "ins:no";
+      group.appendChild(groupLabelEl("No Insurance", noKey, false));
+      if (!isGroupCollapsed(noKey)) noMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
       matterList.appendChild(group);
     }
     const unknownMatters = state.matters.filter(m => !assignedIds.has(m.id));
     if (unknownMatters.length){
       const group = el("div", { class: "matter-group" });
-      group.appendChild(el("div", { class: "matter-group-label" }, ["Insurance Unknown"]));
-      unknownMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      const unkKey = "ins:unknown";
+      group.appendChild(groupLabelEl("Insurance Unknown", unkKey, false));
+      if (!isGroupCollapsed(unkKey)) unknownMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
       matterList.appendChild(group);
     }
   } else {
