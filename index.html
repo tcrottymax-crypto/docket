@@ -72,6 +72,9 @@
   .task{display:flex;flex-direction:column}
   .task-row{display:flex;align-items:flex-start;gap:11px;padding:11px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-left:3px solid transparent}
   .task-row:hover{background:var(--surface)}
+  .edit-hint{opacity:0;border:1px solid var(--border);background:var(--surface);color:var(--accent-700);font-size:11px;padding:3px 8px;border-radius:10px;white-space:nowrap}
+  .task-row:hover .edit-hint{opacity:1}
+  .edit-hint:hover{background:var(--accent-100);border-color:var(--accent)}
   .task-row.selected{background:var(--selected-bg);border-left-color:var(--selected-border)}
   .task-row.done{opacity:.5}
   .checkbox{width:19px;height:19px;flex:none;border:1.5px solid var(--muted);border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;padding:0;margin-top:1px}
@@ -157,6 +160,10 @@
     .sidebar{display:none}
     .detail{position:fixed;inset:0;z-index:20;border-left:0}
     .detail-empty{display:none}
+    .edit-hint{opacity:1}
+  }
+  @media (hover:none){
+    .edit-hint{opacity:1}
   }
   @media print{
     .sidebar,.composer,.detail,.main-head-top .controls,.search{display:none !important}
@@ -1219,6 +1226,10 @@ function renderTaskRow(t, expandedId){
   const right = el("div", { class: "task-right" });
   right.appendChild(el("span", { class: "tag tag-cat" }, [t.category]));
   right.appendChild(el("span", { class: "tag tag-" + t.priority.toLowerCase() }, [t.priority]));
+  right.appendChild(el("button", {
+    class: "edit-hint", title: "Edit this task",
+    onclick: e => { e.stopPropagation(); setState({ selectedId: t.id }); }
+  }, ["✎ Edit"]));
   right.appendChild(el("span", { class: "chev" + (expanded ? " open" : ""), html: "&rsaquo;" }));
   row.appendChild(right);
   wrap.appendChild(row);
