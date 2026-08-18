@@ -20,7 +20,9 @@
   h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:600}
   button{font:inherit;cursor:pointer}
   input,textarea,select{font:inherit;color:inherit}
-  .app{display:grid;grid-template-columns:240px 1fr 340px;height:100vh;min-height:600px}
+  .app{display:grid;grid-template-columns:240px 1fr 340px;height:100vh;min-height:600px;transition:grid-template-columns .18s ease}
+  .app.no-detail{grid-template-columns:240px 1fr 0px}
+  .app.no-detail .detail{display:none}
   .sidebar{border-right:1px solid var(--border);background:var(--surface-2);padding:18px 14px;display:flex;flex-direction:column;gap:20px;overflow-y:auto}
   .brand{display:flex;align-items:baseline;gap:8px}
   .brand h1{font-size:21px;letter-spacing:.02em}
@@ -55,6 +57,7 @@
   .add-matter{display:flex;gap:6px}
   .add-matter input{flex:1;min-width:0;border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;font-size:12px;background:var(--surface)}
   .sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+  .more-menu{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:10px;border-top:1px solid var(--border)}
   .main{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
   .main-head{padding:18px 24px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
   .main-head-top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
@@ -150,6 +153,7 @@
   .cal-row .btn{flex:1}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+    .app.no-detail{grid-template-columns:1fr}
     .sidebar{display:none}
     .detail{position:fixed;inset:0;z-index:20;border-left:0}
     .detail-empty{display:none}
@@ -465,6 +469,10 @@
   .instr-title::placeholder{color:var(--n-400);}
 
   .instr-item{display:flex;gap:12px;padding:8px 0;border-bottom:1px dashed var(--color-divider);align-items:flex-start;}
+  .instr-item.drag-over{border-top:2px solid var(--color-accent-700);}
+  .instr-drag-handle{cursor:grab;color:var(--n-400);font-size:14px;line-height:1;padding-top:3px;user-select:none;flex-shrink:0;}
+  .instr-drag-handle:active{cursor:grabbing;}
+  .instr-drag-handle:hover{color:var(--color-accent-700);}
   .instr-item:last-child{border-bottom:none;}
   .instr-num{color:var(--onp-color);font-weight:700;font-size:13px;flex-shrink:0;width:24px;margin-top:3px;}
   .instr-body{min-width:0;flex:1;}
@@ -866,6 +874,19 @@ function loadMsalScript(){
   return msalLoadPromise;
 }
 
+function clearStuckMsalInteraction(){
+  try{
+    [window.localStorage, window.sessionStorage].forEach(store => {
+      const keys = [];
+      for (let i = 0; i < store.length; i++){
+        const k = store.key(i);
+        if (k && k.toLowerCase().indexOf("interaction.status") >= 0) keys.push(k);
+      }
+      keys.forEach(k => store.removeItem(k));
+    });
+  }catch(e){}
+}
+
 async function ensureMsalApp(){
   const cfg = getMsftConfig();
   if (!cfg || !cfg.clientId) throw new Error("Microsoft Calendar isn't set up yet — add your Client ID first.");
@@ -888,14 +909,19 @@ async function ensureMsalApp(){
 }
 
 async function connectMicrosoft(){
+  if (msftBusy) return;
   msftBusy = true; msftLastError = ""; render();
+  clearStuckMsalInteraction();
   try{
     const app = await ensureMsalApp();
     const result = await app.loginPopup({ scopes: MSFT_SCOPES });
     msftAccount = result.account;
   }catch(e){
     const code = e && e.errorCode ? e.errorCode : "";
-    if (code.indexOf("popup") >= 0 || code === "empty_window_error" || code === "user_cancelled"){
+    if (code === "interaction_in_progress"){
+      clearStuckMsalInteraction();
+      msftLastError = "A previous sign-in attempt didn't finish cleanly — I've reset it. Click “Sign in to Microsoft” again.";
+    } else if (code.indexOf("popup") >= 0 || code === "empty_window_error" || code === "user_cancelled"){
       msftLastError = "Your browser blocked or closed the Microsoft sign-in popup. Allow popups for this site, then click “Sign in to Microsoft” again.";
     } else {
       msftLastError = e && e.message ? e.message : String(e);
@@ -1119,6 +1145,7 @@ function el(tag, attrs, children){
 }
 
 let dragId = null;
+let moreMenuOpen = false;
 
 function renderTaskRow(t, expandedId){
   const wrap = el("div", { class: "task" });
@@ -1189,6 +1216,7 @@ function renderTaskRow(t, expandedId){
 function render(){
   const root = document.getElementById("app");
   root.innerHTML = "";
+  root.className = "app" + ((state.selectedId && findTask(state.selectedId)) ? "" : " no-detail");
 
   const open = state.tasks.filter(t => !t.done);
   const overdueCount = state.tasks.filter(isOverdue).length;
@@ -1278,78 +1306,89 @@ function render(){
   sidebar.appendChild(mattersBlock);
 
   const footer = el("div", { class: "sidebar-footer" });
-  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => window.print() }, ["Print docket"]));
   footer.appendChild(el("button", {
-    class: "btn btn-sm", onclick: () => {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "docket-backup-" + todayISO() + ".json";
-      a.click();
-    }
-  }, ["Export backup"]));
-  const importInput = el("input", { type: "file", id: "importFile", accept: "application/json" });
-  importInput.addEventListener("change", () => {
-    const f = importInput.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const data = JSON.parse(reader.result);
-        if (!confirm("Import will replace all current tasks and matters. Continue?")) return;
-        state = Object.assign(loadState(), data);
-        save(); render();
-      }catch(e){ alert("Could not read that file."); }
-    };
-    reader.readAsText(f);
-  });
-  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => importInput.click() }, ["Import backup"]));
-  footer.appendChild(importInput);
+    class: "btn btn-sm btn-ghost", onclick: () => { moreMenuOpen = !moreMenuOpen; render(); }
+  }, [moreMenuOpen ? "✕ Close" : "⋯ More"]));
 
-  const checklistInput = el("input", { type: "file", id: "checklistFile", accept: "application/json" });
-  checklistInput.addEventListener("change", () => {
-    const f = checklistInput.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const data = JSON.parse(reader.result);
-        if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "checklist"){
-          openChecklistImport(data.checklist);
-        } else if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "full"){
-          alert("That file is a full Training Checklists backup, not a single checklist. In Training Checklists, open the checklist you want and use its \"Save this checklist\" button instead.");
-        } else {
-          alert("That file doesn't look like a Training Checklists export.");
-        }
-      }catch(e){ alert("Could not read that file."); }
-    };
-    reader.readAsText(f);
-  });
-  footer.appendChild(el("button", { class: "btn btn-sm", onclick: () => checklistInput.click() }, ["Import checklist…"]));
-  footer.appendChild(checklistInput);
+  if (moreMenuOpen){
+    const menu = el("div", { class: "more-menu" });
 
-  const calBlock = el("div", { class: "sidebar-footer", style: "margin-top:0" });
-  if (!msftIsConnected()){
-    calBlock.appendChild(el("button", {
-      class: "btn btn-sm",
-      onclick: () => msftIsConfigured() ? connectMicrosoft() : setState({ msftSetupOpen: true })
-    }, [msftBusy ? "Signing in…" : msftIsConfigured() ? "Sign in to Microsoft" : "Connect Microsoft Calendar"]));
-    if (msftIsConfigured()){
+    menu.appendChild(el("button", { class: "btn btn-sm", onclick: () => window.print() }, ["Print docket"]));
+    menu.appendChild(el("button", {
+      class: "btn btn-sm", onclick: () => {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "docket-backup-" + todayISO() + ".json";
+        a.click();
+      }
+    }, ["Export backup"]));
+    const importInput = el("input", { type: "file", id: "importFile", accept: "application/json" });
+    importInput.addEventListener("change", () => {
+      const f = importInput.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          if (!confirm("Import will replace all current tasks and matters. Continue?")) return;
+          state = Object.assign(loadState(), data);
+          save(); render();
+        }catch(e){ alert("Could not read that file."); }
+      };
+      reader.readAsText(f);
+    });
+    menu.appendChild(el("button", { class: "btn btn-sm", onclick: () => importInput.click() }, ["Import backup"]));
+    menu.appendChild(importInput);
+
+    const checklistInput = el("input", { type: "file", id: "checklistFile", accept: "application/json" });
+    checklistInput.addEventListener("change", () => {
+      const f = checklistInput.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "checklist"){
+            openChecklistImport(data.checklist);
+          } else if (data && data.__appExport === "trainingChecklistsApp" && data.__exportType === "full"){
+            alert("That file is a full Training Checklists backup, not a single checklist. In Training Checklists, open the checklist you want and use its \"Save this checklist\" button instead.");
+          } else {
+            alert("That file doesn't look like a Training Checklists export.");
+          }
+        }catch(e){ alert("Could not read that file."); }
+      };
+      reader.readAsText(f);
+    });
+    menu.appendChild(el("button", { class: "btn btn-sm", onclick: () => checklistInput.click() }, ["Import checklist…"]));
+    menu.appendChild(checklistInput);
+
+    const calBlock = el("div", { class: "sidebar-footer", style: "margin-top:0" });
+    if (!msftIsConnected()){
       calBlock.appendChild(el("button", {
-        class: "btn btn-sm btn-ghost", onclick: () => setState({ msftSetupOpen: true })
-      }, ["Change Client ID…"]));
+        class: "btn btn-sm",
+        disabled: msftBusy ? "disabled" : undefined,
+        onclick: () => { if (!msftBusy) (msftIsConfigured() ? connectMicrosoft() : setState({ msftSetupOpen: true })); }
+      }, [msftBusy ? "Signing in…" : msftIsConfigured() ? "Sign in to Microsoft" : "Connect Microsoft Calendar"]));
+      if (msftIsConfigured()){
+        calBlock.appendChild(el("button", {
+          class: "btn btn-sm btn-ghost", onclick: () => setState({ msftSetupOpen: true })
+        }, ["Change Client ID…"]));
+      }
+    } else {
+      const label = (msftAccount && (msftAccount.username || msftAccount.name)) || "Microsoft";
+      calBlock.appendChild(el("div", { class: "cal-status" }, [el("span", {}, ["Calendar: "]), el("b", {}, [label])]));
+      const row = el("div", { class: "cal-row" });
+      row.appendChild(el("button", { class: "btn btn-sm", onclick: () => syncNow(), disabled: msftBusy ? "disabled" : undefined }, [msftBusy ? "Syncing…" : "Sync now"]));
+      row.appendChild(el("button", { class: "btn btn-sm btn-ghost", onclick: () => disconnectMicrosoft() }, ["Disconnect"]));
+      calBlock.appendChild(row);
+      if (msftLastSyncAt) calBlock.appendChild(el("div", { class: "cal-status" }, ["Last synced " + msftLastSyncAt.toLocaleTimeString()]));
     }
-  } else {
-    const label = (msftAccount && (msftAccount.username || msftAccount.name)) || "Microsoft";
-    calBlock.appendChild(el("div", { class: "cal-status" }, [el("span", {}, ["Calendar: "]), el("b", {}, [label])]));
-    const row = el("div", { class: "cal-row" });
-    row.appendChild(el("button", { class: "btn btn-sm", onclick: () => syncNow(), disabled: msftBusy ? "disabled" : undefined }, [msftBusy ? "Syncing…" : "Sync now"]));
-    row.appendChild(el("button", { class: "btn btn-sm btn-ghost", onclick: () => disconnectMicrosoft() }, ["Disconnect"]));
-    calBlock.appendChild(row);
-    if (msftLastSyncAt) calBlock.appendChild(el("div", { class: "cal-status" }, ["Last synced " + msftLastSyncAt.toLocaleTimeString()]));
+    if (msftLastError) calBlock.appendChild(el("div", { class: "cal-status", style: "color:var(--danger)" }, [msftLastError]));
+    menu.appendChild(calBlock);
+
+    footer.appendChild(menu);
   }
-  if (msftLastError) calBlock.appendChild(el("div", { class: "cal-status", style: "color:var(--danger)" }, [msftLastError]));
-  footer.appendChild(calBlock);
 
   sidebar.appendChild(footer);
 
@@ -2136,6 +2175,7 @@ if (msftIsConfigured()){
   var newSubsectionTemplateBtn = document.getElementById("newSubsectionTemplateBtn");
 
   var searchQuery = "";
+  var dragInstrItem = null;
 
   // ---- shared: populate an instruction-topic <select> with optgroups ----
   function populateInstructionSelect(selectEl, selectedId){
@@ -3287,6 +3327,35 @@ if (msftIsConfigured()){
   function renderInstrItemRow(items, it, n){
     var row = document.createElement("div");
     row.className = "instr-item";
+    row.addEventListener("dragover", function(e){
+      e.preventDefault();
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", function(){ row.classList.remove("drag-over"); });
+    row.addEventListener("drop", function(e){
+      e.preventDefault();
+      row.classList.remove("drag-over");
+      if(!dragInstrItem || dragInstrItem === it) return;
+      var fi = items.indexOf(dragInstrItem), ti = items.indexOf(it);
+      if(fi < 0 || ti < 0) return;
+      items.splice(fi, 1);
+      items.splice(ti, 0, dragInstrItem);
+      dragInstrItem = null;
+      save();
+      renderInstructionEditor();
+    });
+
+    var grip = document.createElement("span");
+    grip.className = "instr-drag-handle";
+    grip.textContent = "⠿";
+    grip.title = "Drag to reorder";
+    grip.draggable = true;
+    grip.addEventListener("dragstart", function(e){
+      dragInstrItem = it;
+      e.dataTransfer.effectAllowed = "move";
+    });
+    grip.addEventListener("dragend", function(){ dragInstrItem = null; });
+    row.appendChild(grip);
 
     var num = document.createElement("div");
     num.className = "instr-num";
