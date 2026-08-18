@@ -713,6 +713,10 @@ function loadState(){
       const parsed = JSON.parse(raw);
       parsed.msftSetupOpen = false;
       parsed.pendingImport = null;
+      (parsed.tasks || []).forEach(t => {
+        if (t.dueTime && !t.startTime){ t.startTime = t.dueTime; }
+        delete t.dueTime;
+      });
       return parsed;
     }
   }catch(e){ console.warn("Failed to load saved docket data:", e); }
@@ -982,11 +986,12 @@ function taskToGraphEvent(task){
   const subject = task.title + (task.matterId ? " — " + matterName(task.matterId) : "");
   const body = { contentType: "text", content: bodyParts.join("\n\n") };
 
-  if (task.dueTime){
+  if (task.startTime){
     const pad = n => String(n).padStart(2, "0");
     const toLocalISO = d => d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":00";
-    const startDate = new Date(task.due + "T" + task.dueTime + ":00");
-    const endDate = new Date(startDate.getTime() + 30 * 60000);
+    const startDate = new Date(task.due + "T" + task.startTime + ":00");
+    let endDate = task.endTime ? new Date(task.due + "T" + task.endTime + ":00") : null;
+    if (!endDate || endDate <= startDate) endDate = new Date(startDate.getTime() + 30 * 60000);
     return {
       subject, body, isAllDay: false,
       start: { dateTime: toLocalISO(startDate), timeZone: USER_TZ },
@@ -1149,8 +1154,8 @@ function filteredTasks(){
     (t.title + " " + matterName(t.matterId) + " " + (t.notes||"") + " " + t.category).toLowerCase().includes(q)
   );
   if (state.sort === "due") list = list.slice().sort((a,b) => {
-    const ka = (a.due||"9999") + "T" + (a.dueTime||"00:00");
-    const kb = (b.due||"9999") + "T" + (b.dueTime||"00:00");
+    const ka = (a.due||"9999") + "T" + (a.startTime||"00:00");
+    const kb = (b.due||"9999") + "T" + (b.startTime||"00:00");
     return ka < kb ? -1 : ka > kb ? 1 : 0;
   });
   else if (state.sort === "priority") list = list.slice().sort((a,b) => a.priority.localeCompare(b.priority));
@@ -1203,7 +1208,7 @@ function renderTaskRow(t, expandedId){
   main.appendChild(el("div", { class: "task-title" + (t.done ? " done" : "") }, [t.title]));
   const meta = el("div", { class: "task-meta" });
   meta.appendChild(el("span", { class: "meta-matter" }, [matterName(t.matterId)]));
-  meta.appendChild(el("span", { class: "meta-due" + (isOverdue(t) ? " overdue" : isToday(t) ? " today" : "") }, [fmtDue(t.due) + (t.due && t.dueTime ? " · " + fmtTime(t.dueTime) : "")]));
+  meta.appendChild(el("span", { class: "meta-due" + (isOverdue(t) ? " overdue" : isToday(t) ? " today" : "") }, [fmtDue(t.due) + (t.due && t.startTime ? " · " + fmtTime(t.startTime) + (t.endTime ? "–" + fmtTime(t.endTime) : "") : "")]));
   if (t.steps.length) meta.appendChild(el("span", {}, [t.steps.filter(s=>s.done).length + "/" + t.steps.length + " steps"]));
   if (t.recur) meta.appendChild(el("span", {}, ["↻ " + t.recur]));
   main.appendChild(meta);
@@ -1504,14 +1509,20 @@ function render(){
     grid.appendChild(matterSel);
 
     grid.appendChild(el("label", {}, ["Due"]));
-    const dueWrap = el("div", { style: "display:flex;gap:6px" });
-    const dueInput = el("input", { type: "date", value: sel.due || "", style: "flex:1.3;min-width:0" });
+    const dueInput = el("input", { type: "date", value: sel.due || "" });
     dueInput.addEventListener("change", e => patchTask(sel.id, () => ({ due: e.target.value || null })));
-    const timeInput = el("input", { type: "time", value: sel.dueTime || "", style: "flex:1;min-width:0" });
-    timeInput.addEventListener("change", e => patchTask(sel.id, () => ({ dueTime: e.target.value || null })));
-    dueWrap.appendChild(dueInput);
-    dueWrap.appendChild(timeInput);
-    grid.appendChild(dueWrap);
+    grid.appendChild(dueInput);
+
+    grid.appendChild(el("label", {}, ["Time"]));
+    const timeWrap = el("div", { style: "display:flex;align-items:center;gap:6px" });
+    const startInput = el("input", { type: "time", value: sel.startTime || "", style: "flex:1;min-width:0" });
+    startInput.addEventListener("change", e => patchTask(sel.id, () => ({ startTime: e.target.value || null })));
+    const endInput = el("input", { type: "time", value: sel.endTime || "", style: "flex:1;min-width:0" });
+    endInput.addEventListener("change", e => patchTask(sel.id, () => ({ endTime: e.target.value || null })));
+    timeWrap.appendChild(startInput);
+    timeWrap.appendChild(el("span", { style: "font-size:12px;color:var(--muted)" }, ["–"]));
+    timeWrap.appendChild(endInput);
+    grid.appendChild(timeWrap);
 
     grid.appendChild(el("label", {}, ["Category"]));
     const catSel = el("select", {});
