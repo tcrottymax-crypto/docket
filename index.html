@@ -54,6 +54,23 @@
   .matter-row .del{opacity:0;font-size:12px;color:var(--muted);border:0;background:none;padding:0 2px}
   .matter-row:hover .del{opacity:1}
   .matter-row .del:hover{color:var(--danger)}
+  .matter-row .edit{opacity:0;font-size:11px;color:var(--muted);border:0;background:none;padding:0 2px}
+  .matter-row:hover .edit{opacity:1}
+  .matter-row .edit:hover{color:var(--accent-700)}
+  .matter-row .sub-label{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px}
+  .matter-group{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+  .matter-group-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-700);font-weight:700;padding:6px 2px 2px}
+  .matter-subgroup-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:3px 2px 1px 14px}
+  .matters-head{display:flex;align-items:baseline;gap:8px}
+  .matters-head .manage-link{margin-left:auto;font-size:10px;color:var(--accent-700);border:0;background:none;text-decoration:underline;padding:0}
+  .group-by-sel{margin-left:auto;font-size:10px;border:1px solid var(--border);border-radius:8px;padding:2px 4px;background:var(--surface);color:var(--muted)}
+  .manage-row{display:flex;gap:10px;padding:2px 2px 6px}
+  .manage-row .manage-link{font-size:10px;color:var(--accent-700);border:0;background:none;text-decoration:underline;padding:0}
+  .caseTypeRow{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border)}
+  .caseTypeRow input{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:13px;background:var(--surface-2)}
+  .subtypeRow{display:flex;align-items:center;gap:6px;padding:3px 0 3px 18px}
+  .subtypeRow input{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:3px 6px;font-size:12px;background:var(--surface-2)}
+  .case-type-block{border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin-bottom:8px}
   .add-matter{display:flex;gap:6px}
   .add-matter input{flex:1;min-width:0;border:1px solid var(--border);border-radius:var(--radius);padding:5px 7px;font-size:12px;background:var(--surface)}
   .sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:6px}
@@ -720,6 +737,12 @@ function loadState(){
       const parsed = JSON.parse(raw);
       parsed.msftSetupOpen = false;
       parsed.pendingImport = null;
+      parsed.caseTypesOpen = false;
+      parsed.insuranceTypesOpen = false;
+      parsed.editingMatterId = null;
+      if (!Array.isArray(parsed.caseTypes)) parsed.caseTypes = [];
+      if (!Array.isArray(parsed.insuranceTypes)) parsed.insuranceTypes = [];
+      if (!parsed.matterGroupBy) parsed.matterGroupBy = "caseType";
       (parsed.tasks || []).forEach(t => {
         if (t.dueTime && !t.startTime){ t.startTime = t.dueTime; }
         delete t.dueTime;
@@ -743,7 +766,9 @@ function loadState(){
       { id: uid(), title: "Send engagement letter", matterId: m2, category: "Client", priority: "P2",
         due: null, recur: null, notes: "", steps: [], done: false, order: 2 }
     ],
-    filter: "today", matterFilter: null, sort: "due", query: "", selectedId: null
+    filter: "today", matterFilter: null, sort: "due", query: "", selectedId: null,
+    caseTypes: [], caseTypesOpen: false, editingMatterId: null,
+    insuranceTypes: [], insuranceTypesOpen: false, matterGroupBy: "caseType"
   };
 }
 
@@ -758,6 +783,12 @@ function patchTask(id, fn){
   if (msftIsConnected()){ const t = findTask(id); if (t) syncTaskToCalendar(t); }
 }
 function matterName(id){ const m = state.matters.find(m => m.id === id); return m ? m.name : "No matter"; }
+function findCaseType(id){ return state.caseTypes.find(c => c.id === id) || null; }
+function findCaseSubtype(typeId, subId){
+  const ct = findCaseType(typeId);
+  return ct ? (ct.subtypes.find(s => s.id === subId) || null) : null;
+}
+function findInsuranceType(id){ return state.insuranceTypes.find(i => i.id === id) || null; }
 
 function fmtDue(dueISO){
   if (!dueISO) return "No date";
@@ -1185,6 +1216,40 @@ function el(tag, attrs, children){
 let dragId = null;
 let moreMenuOpen = false;
 
+function renderMatterRow(m, openTasks, indentPx){
+  const active = state.matterFilter === m.id;
+  const count = openTasks.filter(t => t.matterId === m.id).length;
+  const row = el("div", { class: "matter-row" + (active ? " active" : ""), style: indentPx ? ("padding-left:" + (6 + indentPx) + "px") : "" });
+  row.appendChild(el("span", { class: "dot" }));
+  row.appendChild(el("button", { class: "name", onclick: () => setState({ matterFilter: active ? null : m.id }) }, [m.name]));
+  row.appendChild(el("span", { class: "count" }, [String(count)]));
+  const clList = window.__CHECKLISTS__ ? window.__CHECKLISTS__.getChecklistsForMatter(m.id) : [];
+  if (clList.length){
+    row.appendChild(el("button", {
+      class: "cl-badge", title: clList.length + " checklist" + (clList.length === 1 ? "" : "s") + " — open",
+      onclick: () => {
+        window.__CHECKLISTS__.openChecklist(clList[0].id);
+        if (window.__activateApp) window.__activateApp("checklists");
+      }
+    }, ["📋 " + clList.length]));
+  }
+  row.appendChild(el("button", {
+    class: "edit", title: "Edit matter",
+    onclick: () => setState({ editingMatterId: m.id })
+  }, ["✎"]));
+  row.appendChild(el("button", {
+    class: "del", title: "Delete matter",
+    onclick: () => {
+      if (!confirm('Delete matter "' + m.name + '"? Its tasks will move to "No matter".')) return;
+      state.matters = state.matters.filter(x => x.id !== m.id);
+      state.tasks = state.tasks.map(t => t.matterId === m.id ? {...t, matterId: null} : t);
+      if (state.matterFilter === m.id) state.matterFilter = null;
+      save(); render();
+    }
+  }, ["✕"]));
+  return row;
+}
+
 function renderTaskRow(t, expandedId){
   const wrap = el("div", { class: "task" });
   const expanded = expandedId === t.id;
@@ -1299,37 +1364,87 @@ function render(){
   sidebar.appendChild(views);
 
   const mattersBlock = el("div", {});
-  mattersBlock.appendChild(el("div", { class: "section-label" }, ["Matters"]));
-  const matterList = el("div", { class: "nav-list" });
-  state.matters.forEach(m => {
-    const active = state.matterFilter === m.id;
-    const count = open.filter(t => t.matterId === m.id).length;
-    const row = el("div", { class: "matter-row" + (active ? " active" : "") });
-    row.appendChild(el("span", { class: "dot" }));
-    row.appendChild(el("button", { class: "name", onclick: () => setState({ matterFilter: active ? null : m.id }) }, [m.name]));
-    row.appendChild(el("span", { class: "count" }, [String(count)]));
-    const clList = window.__CHECKLISTS__ ? window.__CHECKLISTS__.getChecklistsForMatter(m.id) : [];
-    if (clList.length){
-      row.appendChild(el("button", {
-        class: "cl-badge", title: clList.length + " checklist" + (clList.length === 1 ? "" : "s") + " — open",
-        onclick: () => {
-          window.__CHECKLISTS__.openChecklist(clList[0].id);
-          if (window.__activateApp) window.__activateApp("checklists");
-        }
-      }, ["📋 " + clList.length]));
-    }
-    row.appendChild(el("button", {
-      class: "del", title: "Delete matter",
-      onclick: () => {
-        if (!confirm('Delete matter "' + m.name + '"? Its tasks will move to "No matter".')) return;
-        state.matters = state.matters.filter(x => x.id !== m.id);
-        state.tasks = state.tasks.map(t => t.matterId === m.id ? {...t, matterId: null} : t);
-        if (state.matterFilter === m.id) state.matterFilter = null;
-        save(); render();
-      }
-    }, ["✕"]));
-    matterList.appendChild(row);
+  const mattersHead = el("div", { class: "matters-head" });
+  mattersHead.appendChild(el("div", { class: "section-label" }, ["Matters"]));
+  const groupBySel = el("select", { class: "group-by-sel" });
+  [["caseType","By case type"],["insurance","By insurance"],["none","No grouping"]].forEach(([v,l]) => {
+    const opt = el("option", { value: v }, [l]);
+    if (state.matterGroupBy === v) opt.setAttribute("selected", "selected");
+    groupBySel.appendChild(opt);
   });
+  groupBySel.addEventListener("change", e => setState({ matterGroupBy: e.target.value }));
+  mattersHead.appendChild(groupBySel);
+  mattersBlock.appendChild(mattersHead);
+
+  const manageRow = el("div", { class: "manage-row" });
+  manageRow.appendChild(el("button", { class: "manage-link", onclick: () => setState({ caseTypesOpen: true }) }, ["Manage types"]));
+  manageRow.appendChild(el("button", { class: "manage-link", onclick: () => setState({ insuranceTypesOpen: true }) }, ["Manage insurance"]));
+  mattersBlock.appendChild(manageRow);
+
+  const matterList = el("div", { class: "nav-list" });
+
+  if (state.matterGroupBy === "caseType"){
+    const assignedIds = new Set();
+    state.caseTypes.forEach(ct => {
+      const mattersOfType = state.matters.filter(m => m.caseTypeId === ct.id);
+      if (!mattersOfType.length) return;
+      mattersOfType.forEach(m => assignedIds.add(m.id));
+      const group = el("div", { class: "matter-group" });
+      group.appendChild(el("div", { class: "matter-group-label" }, [ct.name]));
+      mattersOfType.filter(m => !m.caseSubtypeId || !findCaseSubtype(ct.id, m.caseSubtypeId)).forEach(m => {
+        group.appendChild(renderMatterRow(m, open, 0));
+      });
+      ct.subtypes.forEach(st => {
+        const subMatters = mattersOfType.filter(m => m.caseSubtypeId === st.id);
+        if (!subMatters.length) return;
+        group.appendChild(el("div", { class: "matter-subgroup-label" }, [st.name]));
+        subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
+      });
+      matterList.appendChild(group);
+    });
+    const uncategorized = state.matters.filter(m => !assignedIds.has(m.id));
+    if (uncategorized.length){
+      const group = el("div", { class: "matter-group" });
+      if (state.caseTypes.length) group.appendChild(el("div", { class: "matter-group-label" }, ["Uncategorized"]));
+      uncategorized.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      matterList.appendChild(group);
+    }
+  } else if (state.matterGroupBy === "insurance"){
+    const assignedIds = new Set();
+    const yesMatters = state.matters.filter(m => m.insuranceStatus === "yes");
+    if (yesMatters.length){
+      yesMatters.forEach(m => assignedIds.add(m.id));
+      const group = el("div", { class: "matter-group" });
+      group.appendChild(el("div", { class: "matter-group-label" }, ["Has Insurance"]));
+      yesMatters.filter(m => !m.insuranceTypeId || !findInsuranceType(m.insuranceTypeId)).forEach(m => {
+        group.appendChild(renderMatterRow(m, open, 0));
+      });
+      state.insuranceTypes.forEach(it => {
+        const subMatters = yesMatters.filter(m => m.insuranceTypeId === it.id);
+        if (!subMatters.length) return;
+        group.appendChild(el("div", { class: "matter-subgroup-label" }, [it.name]));
+        subMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 14)));
+      });
+      matterList.appendChild(group);
+    }
+    const noMatters = state.matters.filter(m => m.insuranceStatus === "no");
+    if (noMatters.length){
+      noMatters.forEach(m => assignedIds.add(m.id));
+      const group = el("div", { class: "matter-group" });
+      group.appendChild(el("div", { class: "matter-group-label" }, ["No Insurance"]));
+      noMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      matterList.appendChild(group);
+    }
+    const unknownMatters = state.matters.filter(m => !assignedIds.has(m.id));
+    if (unknownMatters.length){
+      const group = el("div", { class: "matter-group" });
+      group.appendChild(el("div", { class: "matter-group-label" }, ["Insurance Unknown"]));
+      unknownMatters.forEach(m => group.appendChild(renderMatterRow(m, open, 0)));
+      matterList.appendChild(group);
+    }
+  } else {
+    state.matters.forEach(m => matterList.appendChild(renderMatterRow(m, open, 0)));
+  }
   mattersBlock.appendChild(matterList);
   const addMatterRow = el("div", { class: "add-matter" });
   const addMatterInput = el("input", { placeholder: "New matter name…" });
@@ -1707,6 +1822,226 @@ function render(){
 
     backdrop2.appendChild(modal2);
     root.appendChild(backdrop2);
+  }
+
+  // Manage case types modal
+  if (state.caseTypesOpen){
+    const backdrop3 = el("div", { class: "modal-backdrop", onclick: e => { if (e.target === backdrop3) setState({ caseTypesOpen: false }); } });
+    const modal3 = el("div", { class: "modal", style: "max-height:80vh;overflow-y:auto" });
+    modal3.appendChild(el("h3", {}, ["Case types"]));
+    modal3.appendChild(el("div", { class: "hint-block" }, [
+      "Create case types (e.g. Family Law) and subcategories under each (e.g. Name Change). Assign them to a matter from that matter's ✎ edit button."
+    ]));
+
+    state.caseTypes.forEach(ct => {
+      const block = el("div", { class: "case-type-block" });
+      const head = el("div", { class: "caseTypeRow" });
+      const nameInput = el("input", { type: "text", value: ct.name });
+      nameInput.addEventListener("change", e => { ct.name = e.target.value.trim() || ct.name; save(); render(); });
+      head.appendChild(nameInput);
+      head.appendChild(el("button", {
+        class: "btn btn-sm btn-danger", onclick: () => {
+          if (!confirm('Delete case type "' + ct.name + '"? Matters using it will become uncategorized.')) return;
+          state.caseTypes = state.caseTypes.filter(x => x.id !== ct.id);
+          state.matters.forEach(m => { if (m.caseTypeId === ct.id){ m.caseTypeId = null; m.caseSubtypeId = null; } });
+          save(); render();
+        }
+      }, ["Delete"]));
+      block.appendChild(head);
+
+      ct.subtypes.forEach(st => {
+        const subRow = el("div", { class: "subtypeRow" });
+        const subInput = el("input", { type: "text", value: st.name });
+        subInput.addEventListener("change", e => { st.name = e.target.value.trim() || st.name; save(); render(); });
+        subRow.appendChild(subInput);
+        subRow.appendChild(el("button", {
+          class: "del", onclick: () => {
+            ct.subtypes = ct.subtypes.filter(x => x.id !== st.id);
+            state.matters.forEach(m => { if (m.caseTypeId === ct.id && m.caseSubtypeId === st.id) m.caseSubtypeId = null; });
+            save(); render();
+          }
+        }, ["✕"]));
+        block.appendChild(subRow);
+      });
+
+      const addSubRow = el("div", { class: "subtypeRow" });
+      const addSubInput = el("input", { type: "text", placeholder: "New subcategory…" });
+      addSubRow.appendChild(addSubInput);
+      addSubRow.appendChild(el("button", {
+        class: "btn btn-sm", onclick: () => {
+          const v = addSubInput.value.trim();
+          if (!v) return;
+          ct.subtypes.push({ id: uid(), name: v });
+          save(); render();
+        }
+      }, ["Add"]));
+      block.appendChild(addSubRow);
+
+      modal3.appendChild(block);
+    });
+
+    const addTypeRow = el("div", { class: "cal-row" });
+    const addTypeInput = el("input", { type: "text", placeholder: "New case type…", style: "flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px" });
+    addTypeRow.appendChild(addTypeInput);
+    addTypeRow.appendChild(el("button", {
+      class: "btn btn-primary btn-sm", onclick: () => {
+        const v = addTypeInput.value.trim();
+        if (!v) return;
+        state.caseTypes.push({ id: uid(), name: v, subtypes: [] });
+        addTypeInput.value = "";
+        save(); render();
+      }
+    }, ["Add case type"]));
+    modal3.appendChild(addTypeRow);
+
+    const actions3 = el("div", { class: "modal-actions" });
+    actions3.appendChild(el("button", { class: "btn btn-primary", onclick: () => setState({ caseTypesOpen: false }) }, ["Done"]));
+    modal3.appendChild(actions3);
+
+    backdrop3.appendChild(modal3);
+    root.appendChild(backdrop3);
+  }
+
+  // Manage insurance types modal
+  if (state.insuranceTypesOpen){
+    const backdrop5 = el("div", { class: "modal-backdrop", onclick: e => { if (e.target === backdrop5) setState({ insuranceTypesOpen: false }); } });
+    const modal5 = el("div", { class: "modal", style: "max-height:80vh;overflow-y:auto" });
+    modal5.appendChild(el("h3", {}, ["Insurance types"]));
+    modal5.appendChild(el("div", { class: "hint-block" }, [
+      "Create the insurance types you want to track (e.g. Auto, Homeowners, Umbrella). Mark whether a matter has insurance, and which type, from that matter's ✎ edit button."
+    ]));
+
+    state.insuranceTypes.forEach(it => {
+      const row = el("div", { class: "caseTypeRow" });
+      const nameInput = el("input", { type: "text", value: it.name });
+      nameInput.addEventListener("change", e => { it.name = e.target.value.trim() || it.name; save(); render(); });
+      row.appendChild(nameInput);
+      row.appendChild(el("button", {
+        class: "btn btn-sm btn-danger", onclick: () => {
+          if (!confirm('Delete insurance type "' + it.name + '"? Matters using it will keep "Has Insurance" but lose the type.')) return;
+          state.insuranceTypes = state.insuranceTypes.filter(x => x.id !== it.id);
+          state.matters.forEach(m => { if (m.insuranceTypeId === it.id) m.insuranceTypeId = null; });
+          save(); render();
+        }
+      }, ["Delete"]));
+      modal5.appendChild(row);
+    });
+
+    const addTypeRow2 = el("div", { class: "cal-row" });
+    const addTypeInput2 = el("input", { type: "text", placeholder: "New insurance type…", style: "flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px" });
+    addTypeRow2.appendChild(addTypeInput2);
+    addTypeRow2.appendChild(el("button", {
+      class: "btn btn-primary btn-sm", onclick: () => {
+        const v = addTypeInput2.value.trim();
+        if (!v) return;
+        state.insuranceTypes.push({ id: uid(), name: v });
+        addTypeInput2.value = "";
+        save(); render();
+      }
+    }, ["Add insurance type"]));
+    modal5.appendChild(addTypeRow2);
+
+    const actions5 = el("div", { class: "modal-actions" });
+    actions5.appendChild(el("button", { class: "btn btn-primary", onclick: () => setState({ insuranceTypesOpen: false }) }, ["Done"]));
+    modal5.appendChild(actions5);
+
+    backdrop5.appendChild(modal5);
+    root.appendChild(backdrop5);
+  }
+
+  // Edit matter modal
+  if (state.editingMatterId){
+    const em = state.matters.find(m => m.id === state.editingMatterId);
+    if (em){
+      const backdrop4 = el("div", { class: "modal-backdrop", onclick: e => { if (e.target === backdrop4) setState({ editingMatterId: null }); } });
+      const modal4 = el("div", { class: "modal" });
+      modal4.appendChild(el("h3", {}, ["Edit matter"]));
+
+      const nameField = el("div", { class: "field" });
+      nameField.appendChild(el("label", {}, ["Name"]));
+      const nameInput = el("input", { type: "text", value: em.name });
+      nameInput.addEventListener("change", e => { em.name = e.target.value.trim() || em.name; save(); render(); });
+      nameField.appendChild(nameInput);
+      modal4.appendChild(nameField);
+
+      const numField = el("div", { class: "field" });
+      numField.appendChild(el("label", {}, ["Matter number"]));
+      const numInput = el("input", { type: "text", value: em.number || "" });
+      numInput.addEventListener("change", e => { em.number = e.target.value; save(); });
+      numField.appendChild(numInput);
+      modal4.appendChild(numField);
+
+      const typeField = el("div", { class: "field" });
+      typeField.appendChild(el("label", {}, ["Case type"]));
+      const typeSel = el("select", {});
+      typeSel.appendChild(el("option", { value: "" }, ["— None —"]));
+      state.caseTypes.forEach(ct => {
+        const opt = el("option", { value: ct.id }, [ct.name]);
+        if (em.caseTypeId === ct.id) opt.setAttribute("selected", "selected");
+        typeSel.appendChild(opt);
+      });
+      typeSel.addEventListener("change", e => {
+        em.caseTypeId = e.target.value || null;
+        em.caseSubtypeId = null;
+        save(); render();
+      });
+      typeField.appendChild(typeSel);
+      modal4.appendChild(typeField);
+
+      const curType = em.caseTypeId ? findCaseType(em.caseTypeId) : null;
+      if (curType && curType.subtypes.length){
+        const subField = el("div", { class: "field" });
+        subField.appendChild(el("label", {}, ["Subcategory"]));
+        const subSel = el("select", {});
+        subSel.appendChild(el("option", { value: "" }, ["— None —"]));
+        curType.subtypes.forEach(st => {
+          const opt = el("option", { value: st.id }, [st.name]);
+          if (em.caseSubtypeId === st.id) opt.setAttribute("selected", "selected");
+          subSel.appendChild(opt);
+        });
+        subSel.addEventListener("change", e => { em.caseSubtypeId = e.target.value || null; save(); render(); });
+        subField.appendChild(subSel);
+        modal4.appendChild(subField);
+      }
+
+      const insField = el("div", { class: "field" });
+      insField.appendChild(el("label", {}, ["Insurance"]));
+      const insSel = el("select", {});
+      [["", "Unknown"], ["yes", "Yes"], ["no", "No"]].forEach(([v,l]) => {
+        const opt = el("option", { value: v }, [l]);
+        if ((em.insuranceStatus || "") === v) opt.setAttribute("selected", "selected");
+        insSel.appendChild(opt);
+      });
+      insSel.addEventListener("change", e => {
+        em.insuranceStatus = e.target.value || null;
+        if (em.insuranceStatus !== "yes") em.insuranceTypeId = null;
+        save(); render();
+      });
+      insField.appendChild(insSel);
+      modal4.appendChild(insField);
+
+      if (em.insuranceStatus === "yes" && state.insuranceTypes.length){
+        const insTypeField = el("div", { class: "field" });
+        insTypeField.appendChild(el("label", {}, ["Insurance type"]));
+        const insTypeSel = el("select", {});
+        insTypeSel.appendChild(el("option", { value: "" }, ["— None —"]));
+        state.insuranceTypes.forEach(it => {
+          const opt = el("option", { value: it.id }, [it.name]);
+          if (em.insuranceTypeId === it.id) opt.setAttribute("selected", "selected");
+          insTypeSel.appendChild(opt);
+        });
+        insTypeSel.addEventListener("change", e => { em.insuranceTypeId = e.target.value || null; save(); render(); });
+        insTypeField.appendChild(insTypeSel);
+        modal4.appendChild(insTypeField);
+      }
+
+      const actions4 = el("div", { class: "modal-actions" });
+      actions4.appendChild(el("button", { class: "btn btn-primary", onclick: () => setState({ editingMatterId: null }) }, ["Done"]));
+      modal4.appendChild(actions4);
+
+      backdrop4.appendChild(modal4);
+      root.appendChild(backdrop4);
+    }
   }
 }
 
