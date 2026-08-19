@@ -516,6 +516,22 @@
   .instr-add-item{display:block;margin-top:8px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);background:transparent;border:none;cursor:pointer;padding:4px 0;font-family:inherit;}
   .instr-add-item:hover{text-decoration:underline;}
   .instr-add-section{display:block;margin-top:6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);background:transparent;border:1.5px dashed var(--n-400);border-radius:var(--radius-sm);cursor:pointer;padding:10px 14px;width:100%;text-align:center;font-family:inherit;}
+  .instr-charts-wrap{margin-top:30px;padding-top:18px;border-top:1px solid var(--color-divider);}
+  .instr-charts-label{font-family:var(--font-heading);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--n-600);margin-bottom:10px;}
+  .instr-chart{margin-bottom:22px;border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:14px;background:var(--n-100);}
+  .instr-chart-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .instr-chart-title{flex:1;font-family:var(--font-display);font-weight:700;font-size:16px;border:none;background:transparent;color:var(--color-text);padding:2px 0;}
+  .instr-chart-title:focus{outline:none;border-bottom:1px solid var(--onp-color);}
+  .instr-chart-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .instr-chart-table th,.instr-chart-table td{border:1px solid var(--color-divider);padding:0;}
+  .instr-chart-table th input,.instr-chart-table td input{width:100%;border:none;background:transparent;padding:6px 8px;font:inherit;color:var(--color-text);}
+  .instr-chart-table th input{font-weight:700;font-family:var(--font-heading);font-size:11px;letter-spacing:.03em;text-transform:uppercase;}
+  .instr-chart-table th{background:var(--color-surface);vertical-align:middle;}
+  .instr-chart-table th,.instr-chart-table td:last-child{white-space:nowrap;width:1%;}
+  .instr-chart-del-col,.instr-chart-del-row{border:none;background:transparent;color:var(--n-400);font-size:14px;line-height:1;cursor:pointer;padding:2px 6px;}
+  .instr-chart-del-col:hover,.instr-chart-del-row:hover{color:#a33b3b;}
+  .instr-chart-add-col{border:none;background:transparent;color:var(--onp-color);font-size:11px;font-weight:600;cursor:pointer;padding:6px 8px;white-space:nowrap;}
+  .instr-chart-add-row{display:block;margin-top:8px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--onp-color);background:transparent;border:1px dashed var(--n-400);border-radius:var(--radius-sm);cursor:pointer;padding:6px 10px;font-family:inherit;}
   .instr-add-section:hover{border-color:var(--onp-color);}
 
   @media (max-width:900px){
@@ -569,12 +585,8 @@
       <label>Title
         <input id="ncTitle" placeholder="e.g. Smith v. Smith — Divorce">
       </label>
-      <label>Link the first section to an instruction topic (optional)
+      <label>Start the first section from a template (optional)
         <select id="ncLink"></select>
-      </label>
-      <label class="nc-copy-row">
-        <input type="checkbox" id="ncCopySteps" disabled>
-        <span>Copy steps from that instruction topic</span>
       </label>
       <div class="nc-actions">
         <button class="btn btn-primary" id="ncCreateBtn" type="button">Create</button>
@@ -585,6 +597,19 @@
     <input type="file" id="loadChecklistFileInput" accept="application/json" style="display:none;">
     <button class="btn btn-primary btn-block" id="newSectionTemplateBtn" type="button">+ New section template</button>
     <button class="btn btn-block" id="newSubsectionTemplateBtn" type="button">+ New subsection template</button>
+    <button class="btn btn-block" id="newFromInstrBtn" type="button">+ From instructions…</button>
+    <div id="fromInstrForm" class="new-checklist-form">
+      <label>Instruction topic
+        <select id="fiTopicSelect"></select>
+      </label>
+      <label>Section
+        <select id="fiSectionSelect"></select>
+      </label>
+      <div class="nc-actions">
+        <button class="btn btn-primary" id="fiCreateBtn" type="button">Create template</button>
+        <button class="btn" id="fiCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
     <div id="navGroups"></div>
   </aside>
 
@@ -784,6 +809,15 @@ function patchTask(id, fn){
   state.tasks = state.tasks.map(t => t.id === id ? Object.assign({}, t, fn(t)) : t);
   save(); render();
   if (msftIsConnected()){ const t = findTask(id); if (t) syncTaskToCalendar(t); }
+}
+function toggleTaskDone(id){
+  const t = findTask(id);
+  if (!t) return;
+  const newDone = !t.done;
+  patchTask(id, x => ({ done: newDone }));
+  if (t.linkedChecklistId && t.linkedChecklistItemId && window.__CHECKLISTS__ && window.__CHECKLISTS__.setItemDone){
+    window.__CHECKLISTS__.setItemDone(t.linkedChecklistId, t.linkedChecklistItemId, newDone);
+  }
 }
 function matterName(id){ const m = state.matters.find(m => m.id === id); return m ? m.name : "No matter"; }
 function findCaseType(id){ return state.caseTypes.find(c => c.id === id) || null; }
@@ -1291,7 +1325,7 @@ function renderTaskRow(t, expandedId){
 
   const box = el("button", {
     class: "checkbox" + (t.done ? " checked" : ""),
-    onclick: e => { e.stopPropagation(); patchTask(t.id, x => ({ done: !x.done })); }
+    onclick: e => { e.stopPropagation(); toggleTaskDone(t.id); }
   });
 
   const main = el("div", { class: "task-main" });
@@ -1747,9 +1781,13 @@ function render(){
     notesBlock.appendChild(notesArea);
     body.appendChild(notesBlock);
 
+    if (sel.linkedChecklistId){
+      body.appendChild(el("div", { class: "cal-status" }, ["🔗 Linked to a checklist item — marking done here or there updates both."]));
+    }
+
     const actions = el("div", { class: "detail-actions" });
     actions.appendChild(el("button", {
-      class: "btn btn-primary", onclick: () => patchTask(sel.id, t => ({ done: !t.done }))
+      class: "btn btn-primary", onclick: () => toggleTaskDone(sel.id)
     }, [sel.done ? "Mark not done" : "Mark done"]));
     actions.appendChild(el("button", {
       class: "btn", onclick: () => patchTask(sel.id, () => ({ due: addDays(todayISO(),1) }))
@@ -2093,11 +2131,17 @@ window.__DOCKET__ = {
       priority: prioMap[fields.priority] || "P3",
       due: null, recur: null, notes: fields.notes || "",
       steps: (fields.steps || []).map(s => ({ id: uid(), text: s.text, done: !!s.done })),
-      done: !!fields.done, order: -Date.now()
+      done: !!fields.done, order: -Date.now(),
+      linkedChecklistId: fields.checklistId || null,
+      linkedChecklistItemId: fields.itemId || null
     };
     state.tasks.push(task);
     save(); render();
     return task.id;
+  },
+  setTaskDone: (taskId, done) => {
+    state.tasks = state.tasks.map(t => t.id === taskId ? Object.assign({}, t, { done: !!done }) : t);
+    save(); render();
   },
   openTask: taskId => {
     const t = findTask(taskId);
@@ -2145,7 +2189,10 @@ if (msftIsConfigured()){
   var DEFAULT_INSTRUCTION_COLOR = "#416180";
 
   function buildInstructionTopic(){
-    return { id: uid(), title: "New instruction topic", categoryId: null, sections: [ { title: "Section", items: [ { text:"", priority:"M", desc:"" } ] } ] };
+    return { id: uid(), title: "New instruction topic", categoryId: null, sections: [ { title: "Section", items: [ { text:"", priority:"M", desc:"" } ] } ], charts: [] };
+  }
+  function buildChart(){
+    return { id: uid(), title: "Fee Schedule", columns: ["Service", "Fee"], rows: [["", ""]] };
   }
   function buildInstructionCategory(name, color){
     return { id: uid(), name: name || "New category", color: color || CATEGORY_COLOR_PALETTE[0] };
@@ -2198,20 +2245,13 @@ if (msftIsConfigured()){
   function buildSubitem(){
     return { id: uid(), text:"", priority:"M", notes:"", done:false };
   }
-  function buildSectionsFromInstruction(def){
-    return def.sections.map(function(s){
-      return { title: s.title, linkedInstructionId: def.id, items: s.items.map(buildItemState) };
-    });
-  }
-  function createChecklist(title, linkedInstructionId, copySteps){
-    var linkedDef = linkedInstructionId ? instructionDefById(linkedInstructionId) : null;
+  function createChecklist(title, linkedTemplateId){
+    var tpl = linkedTemplateId ? sectionTemplateById(linkedTemplateId) : null;
     var sections;
-    if(linkedDef && copySteps){
-      sections = buildSectionsFromInstruction(linkedDef);
-    } else if(linkedDef){
-      sections = [{ title: linkedDef.title, linkedInstructionId: linkedDef.id, items: [] }];
+    if(tpl){
+      sections = [{ title: tpl.title, linkedTemplateId: tpl.id, items: tpl.items.map(buildItemState) }];
     } else {
-      sections = [{ title: "Checklist", linkedInstructionId: null, items: [] }];
+      sections = [{ title: "Checklist", linkedTemplateId: null, items: [] }];
     }
     var cl = {
       id: uid(),
@@ -2293,6 +2333,7 @@ if (msftIsConfigured()){
       delete cl.linkedInstructionId;
       cl.sections.forEach(function(s, idx){
         if(typeof s.linkedInstructionId === "undefined") s.linkedInstructionId = (idx === 0 && legacyLink) ? legacyLink : null;
+        if(typeof s.linkedTemplateId === "undefined") s.linkedTemplateId = null;
         if(!Array.isArray(s.items)) s.items = [];
         s.items.forEach(function(it){
           if(!Array.isArray(it.subitems)) it.subitems = [];
@@ -2366,6 +2407,13 @@ if (msftIsConfigured()){
       if(typeof t.categoryId === "undefined") t.categoryId = null;
       if(t.categoryId && !instructionCategoryByIdIn(state.instructionCategories, t.categoryId)) t.categoryId = null;
       if(!Array.isArray(t.sections)) t.sections = [{ title: "Section", items: [] }];
+      if(!Array.isArray(t.charts)) t.charts = [];
+      t.charts.forEach(function(c){
+        if(!c.id) c.id = uid();
+        if(typeof c.title !== "string") c.title = "Chart";
+        if(!Array.isArray(c.columns)) c.columns = [];
+        if(!Array.isArray(c.rows)) c.rows = [];
+      });
       t.sections.forEach(function(s){
         if(typeof s.title !== "string") s.title = "Section";
         if(!Array.isArray(s.items)) s.items = [];
@@ -2577,7 +2625,6 @@ if (msftIsConfigured()){
   var newChecklistFormEl = document.getElementById("newChecklistForm");
   var ncTitleEl = document.getElementById("ncTitle");
   var ncLinkEl = document.getElementById("ncLink");
-  var ncCopyStepsEl = document.getElementById("ncCopySteps");
   var ncCreateBtn = document.getElementById("ncCreateBtn");
   var ncCancelBtn = document.getElementById("ncCancelBtn");
   var deleteChecklistBtn = document.getElementById("deleteChecklistBtn");
@@ -2592,6 +2639,12 @@ if (msftIsConfigured()){
   var deleteTemplateBtn = document.getElementById("deleteTemplateBtn");
   var newSectionTemplateBtn = document.getElementById("newSectionTemplateBtn");
   var newSubsectionTemplateBtn = document.getElementById("newSubsectionTemplateBtn");
+  var newFromInstrBtn = document.getElementById("newFromInstrBtn");
+  var fromInstrFormEl = document.getElementById("fromInstrForm");
+  var fiTopicSelectEl = document.getElementById("fiTopicSelect");
+  var fiSectionSelectEl = document.getElementById("fiSectionSelect");
+  var fiCreateBtn = document.getElementById("fiCreateBtn");
+  var fiCancelBtn = document.getElementById("fiCancelBtn");
 
   var searchQuery = "";
   var dragInstrItem = null;
@@ -2666,6 +2719,8 @@ if (msftIsConfigured()){
     loadChecklistFileBtn.style.display = state.view === "checklist" ? "block" : "none";
     newSectionTemplateBtn.style.display = state.view === "templates" ? "block" : "none";
     newSubsectionTemplateBtn.style.display = state.view === "templates" ? "block" : "none";
+    newFromInstrBtn.style.display = state.view === "templates" ? "block" : "none";
+    if(state.view !== "templates") fromInstrFormEl.classList.remove("open");
     if(state.view !== "checklist") newChecklistFormEl.classList.remove("open");
     if(state.view === "instructions") renderInstructionsSidebar();
     else if(state.view === "checklist") renderChecklistsSidebar();
@@ -2872,11 +2927,11 @@ if (msftIsConfigured()){
       btn.type = "button";
 
       var nameSpan = document.createElement("span");
-      var hasLinkedSection = cl.sections.some(function(s){ return s.linkedInstructionId; });
+      var hasLinkedSection = cl.sections.some(function(s){ return s.linkedInstructionId || s.linkedTemplateId; });
       if(hasLinkedSection){
         var dot = document.createElement("span");
         dot.className = "nav-link-dot";
-        dot.title = "One or more sections are linked to an instruction topic";
+        dot.title = "One or more sections are linked to a template";
         nameSpan.appendChild(dot);
       }
       nameSpan.appendChild(document.createTextNode(cl.title || "Untitled checklist"));
@@ -2917,24 +2972,17 @@ if (msftIsConfigured()){
       renderMain();
     }
     newChecklistFormEl.classList.add("open");
-    populateInstructionSelect(ncLinkEl, "");
+    populateTemplateSelect(ncLinkEl, "section");
     ncTitleEl.value = "";
-    ncCopyStepsEl.checked = false;
-    ncCopyStepsEl.disabled = true;
     ncTitleEl.focus();
   });
   ncCancelBtn.addEventListener("click", function(){
     newChecklistFormEl.classList.remove("open");
   });
-  ncLinkEl.addEventListener("change", function(){
-    var linked = !!ncLinkEl.value;
-    ncCopyStepsEl.disabled = !linked;
-    if(!linked) ncCopyStepsEl.checked = false;
-  });
   ncCreateBtn.addEventListener("click", function(){
     var title = ncTitleEl.value.trim();
     if(!title){ ncTitleEl.focus(); return; }
-    createChecklist(title, ncLinkEl.value || null, ncCopyStepsEl.checked);
+    createChecklist(title, ncLinkEl.value || null);
     newChecklistFormEl.classList.remove("open");
     save();
     renderSidebar();
@@ -2976,6 +3024,73 @@ if (msftIsConfigured()){
     window.scrollTo(0,0);
     templateTitleEl.focus();
     templateTitleEl.select();
+  });
+
+  function populateFiTopicSelect(){
+    fiTopicSelectEl.innerHTML = "";
+    if(!state.instructionTopics.length){
+      var noneOpt = document.createElement("option");
+      noneOpt.value = ""; noneOpt.disabled = true;
+      noneOpt.textContent = "No instruction topics yet";
+      fiTopicSelectEl.appendChild(noneOpt);
+      return;
+    }
+    state.instructionTopics.slice().sort(function(a,b){ return (a.title||"").localeCompare(b.title||""); }).forEach(function(t){
+      var opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.title || "Untitled";
+      fiTopicSelectEl.appendChild(opt);
+    });
+  }
+  function populateFiSectionSelect(){
+    fiSectionSelectEl.innerHTML = "";
+    var topic = instructionDefById(fiTopicSelectEl.value);
+    if(!topic || !topic.sections.length){
+      var noneOpt = document.createElement("option");
+      noneOpt.value = ""; noneOpt.disabled = true;
+      noneOpt.textContent = "No sections";
+      fiSectionSelectEl.appendChild(noneOpt);
+      return;
+    }
+    topic.sections.forEach(function(s, idx){
+      var opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = s.title || ("Section " + (idx + 1));
+      fiSectionSelectEl.appendChild(opt);
+    });
+  }
+  newFromInstrBtn.addEventListener("click", function(){
+    switchToView("templates");
+    renderSidebar();
+    renderMain();
+    populateFiTopicSelect();
+    populateFiSectionSelect();
+    fromInstrFormEl.classList.add("open");
+  });
+  fiTopicSelectEl.addEventListener("change", function(){ populateFiSectionSelect(); });
+  fiCancelBtn.addEventListener("click", function(){ fromInstrFormEl.classList.remove("open"); });
+  fiCreateBtn.addEventListener("click", function(){
+    var topic = instructionDefById(fiTopicSelectEl.value);
+    if(!topic){ alert("Choose an instruction topic first."); return; }
+    var idx = parseInt(fiSectionSelectEl.value, 10);
+    var section = topic.sections[idx];
+    if(!section){ alert("Choose a section first."); return; }
+    var t = {
+      id: uid(),
+      title: topic.title + " — " + section.title,
+      category: "",
+      items: section.items.map(function(raw){
+        return { text: raw.text || "", priority: raw.priority || "M", desc: raw.desc || "", type: "checkbox", subsectionTitle: "", subitems: [] };
+      })
+    };
+    state.sectionTemplates.push(t);
+    state.activeTemplateType = "section";
+    state.activeTemplateId = t.id;
+    fromInstrFormEl.classList.remove("open");
+    save();
+    renderSidebar();
+    renderMain();
+    window.scrollTo(0,0);
   });
 
   // ---- new instruction topic ----
@@ -3318,12 +3433,18 @@ if (msftIsConfigured()){
         item.answer = item.answer === "yes" ? null : "yes";
         item.done = item.answer !== null;
         save();
+        if(item.linkedTaskId && window.__DOCKET__ && window.__DOCKET__.setTaskDone){
+          window.__DOCKET__.setTaskDone(item.linkedTaskId, item.done);
+        }
         renderChecklist();
       });
       noBtn.addEventListener("click", function(){
         item.answer = item.answer === "no" ? null : "no";
         item.done = item.answer !== null;
         save();
+        if(item.linkedTaskId && window.__DOCKET__ && window.__DOCKET__.setTaskDone){
+          window.__DOCKET__.setTaskDone(item.linkedTaskId, item.done);
+        }
         renderChecklist();
       });
 
@@ -3341,6 +3462,9 @@ if (msftIsConfigured()){
         row.classList.toggle("done", item.done);
         updateProgress();
         save();
+        if(item.linkedTaskId && window.__DOCKET__ && window.__DOCKET__.setTaskDone){
+          window.__DOCKET__.setTaskDone(item.linkedTaskId, item.done);
+        }
       });
       row.appendChild(check);
     }
@@ -3460,7 +3584,9 @@ if (msftIsConfigured()){
         priority: item.priority,
         notes: notesParts.join("\n\n"),
         done: item.done,
-        steps: (item.subitems || []).filter(function(s){ return (s.text||"").trim(); }).map(function(s){ return { text: s.text, done: !!s.done }; })
+        steps: (item.subitems || []).filter(function(s){ return (s.text||"").trim(); }).map(function(s){ return { text: s.text, done: !!s.done }; }),
+        checklistId: cs2.id,
+        itemId: item.id
       });
       item.linkedTaskId = newId;
       save();
@@ -3524,10 +3650,13 @@ if (msftIsConfigured()){
   function renderSectionLinkRow(section, container){
     container.innerHTML = "";
     if(section.linkedInstructionId){
+      // Legacy data from before checklists were restricted to pulling from
+      // templates only. Left working so old checklists don't break, but no
+      // longer offered as an option for new links (see the "else" branch).
       var linkedDef = instructionDefById(section.linkedInstructionId);
       var status = document.createElement("span");
       if(linkedDef){
-        status.innerHTML = "Linked to: <b>" + escapeHtml(linkedDef.title) + "</b>";
+        status.innerHTML = "Linked to instructions: <b>" + escapeHtml(linkedDef.title) + "</b>";
       } else {
         status.textContent = "Linked to an instruction topic that no longer exists.";
       }
@@ -3539,11 +3668,8 @@ if (msftIsConfigured()){
         viewBtn.className = "link-action";
         viewBtn.textContent = "View";
         viewBtn.addEventListener("click", function(){
-          state.view = "instructions";
+          switchToView("instructions");
           state.activeInstructionId = linkedDef.id;
-          document.querySelectorAll(".view-toggle button[data-view]").forEach(function(b){
-            b.classList.toggle("active", b.getAttribute("data-view") === "instructions");
-          });
           save();
           renderSidebar();
           renderMain();
@@ -3563,9 +3689,47 @@ if (msftIsConfigured()){
         renderSidebar();
       });
       container.appendChild(unlinkBtn);
+    } else if(section.linkedTemplateId){
+      var linkedTpl = sectionTemplateById(section.linkedTemplateId);
+      var statusT = document.createElement("span");
+      if(linkedTpl){
+        statusT.innerHTML = "Linked to template: <b>" + escapeHtml(linkedTpl.title) + "</b>";
+      } else {
+        statusT.textContent = "Linked to a template that no longer exists.";
+      }
+      container.appendChild(statusT);
+
+      if(linkedTpl){
+        var viewBtnT = document.createElement("button");
+        viewBtnT.type = "button";
+        viewBtnT.className = "link-action";
+        viewBtnT.textContent = "View";
+        viewBtnT.addEventListener("click", function(){
+          switchToView("templates");
+          state.activeTemplateType = "section";
+          state.activeTemplateId = linkedTpl.id;
+          save();
+          renderSidebar();
+          renderMain();
+          window.scrollTo(0,0);
+        });
+        container.appendChild(viewBtnT);
+      }
+
+      var unlinkBtnT = document.createElement("button");
+      unlinkBtnT.type = "button";
+      unlinkBtnT.className = "link-action danger";
+      unlinkBtnT.textContent = "Unlink";
+      unlinkBtnT.addEventListener("click", function(){
+        section.linkedTemplateId = null;
+        save();
+        renderSectionLinkRow(section, container);
+        renderSidebar();
+      });
+      container.appendChild(unlinkBtnT);
     } else {
       var status2 = document.createElement("span");
-      status2.textContent = "Not linked to an instruction topic.";
+      status2.textContent = "Not linked to a template.";
       container.appendChild(status2);
 
       var linkBtn = document.createElement("button");
@@ -3574,20 +3738,17 @@ if (msftIsConfigured()){
       linkBtn.textContent = "Link…";
       linkBtn.addEventListener("click", function(){
         var sel = document.createElement("select");
-        populateInstructionSelect(sel, "");
+        populateTemplateSelect(sel, "section");
         var confirmBtn = document.createElement("button");
         confirmBtn.type = "button";
         confirmBtn.className = "link-action";
         confirmBtn.textContent = "Set link";
         confirmBtn.addEventListener("click", function(){
           if(sel.value){
-            section.linkedInstructionId = sel.value;
-            var linkedDef2 = instructionDefById(sel.value);
-            if(linkedDef2){
-              var copiedItems = [];
-              linkedDef2.sections.forEach(function(s){
-                s.items.forEach(function(raw){ copiedItems.push(buildItemState(raw)); });
-              });
+            section.linkedTemplateId = sel.value;
+            var tpl2 = sectionTemplateById(sel.value);
+            if(tpl2){
+              var copiedItems = tpl2.items.map(buildItemState);
               section.items = section.items.concat(copiedItems);
             }
             save();
@@ -3929,6 +4090,139 @@ if (msftIsConfigured()){
       save();
     });
     instrSectionsEl.appendChild(addSectionBtn);
+
+    if(!Array.isArray(def.charts)) def.charts = [];
+    var chartsWrap = document.createElement("div");
+    chartsWrap.className = "instr-charts-wrap";
+    var chartsLabel = document.createElement("div");
+    chartsLabel.className = "instr-charts-label";
+    chartsLabel.textContent = "Charts";
+    chartsWrap.appendChild(chartsLabel);
+    def.charts.forEach(function(chart){
+      chartsWrap.appendChild(renderInstrChart(def, chart));
+    });
+    var addChartBtn = document.createElement("button");
+    addChartBtn.type = "button";
+    addChartBtn.className = "instr-add-section";
+    addChartBtn.textContent = "+ Add chart";
+    addChartBtn.addEventListener("click", function(){
+      def.charts.push(buildChart());
+      renderInstructionEditor();
+      save();
+    });
+    chartsWrap.appendChild(addChartBtn);
+    instrSectionsEl.appendChild(chartsWrap);
+  }
+
+  function renderInstrChart(def, chart){
+    var wrap = document.createElement("div");
+    wrap.className = "instr-chart";
+
+    var head = document.createElement("div");
+    head.className = "instr-chart-head";
+    var titleInput = document.createElement("input");
+    titleInput.className = "instr-chart-title";
+    titleInput.placeholder = "Chart title";
+    titleInput.value = chart.title || "";
+    titleInput.addEventListener("input", function(){ chart.title = titleInput.value; save(); });
+    head.appendChild(titleInput);
+
+    var delChartBtn = document.createElement("button");
+    delChartBtn.type = "button";
+    delChartBtn.className = "instr-section-del";
+    delChartBtn.innerHTML = "&times;";
+    delChartBtn.title = "Remove chart";
+    delChartBtn.addEventListener("click", function(){
+      var idx = def.charts.indexOf(chart);
+      if(idx > -1) def.charts.splice(idx, 1);
+      renderInstructionEditor();
+      save();
+    });
+    head.appendChild(delChartBtn);
+    wrap.appendChild(head);
+
+    var table = document.createElement("table");
+    table.className = "instr-chart-table";
+
+    var thead = document.createElement("thead");
+    var headRow = document.createElement("tr");
+    chart.columns.forEach(function(colName, ci){
+      var th = document.createElement("th");
+      var colInput = document.createElement("input");
+      colInput.value = colName;
+      colInput.addEventListener("input", function(){ chart.columns[ci] = colInput.value; save(); });
+      th.appendChild(colInput);
+      var delColBtn = document.createElement("button");
+      delColBtn.type = "button";
+      delColBtn.className = "instr-chart-del-col";
+      delColBtn.innerHTML = "&times;";
+      delColBtn.title = "Remove column";
+      delColBtn.addEventListener("click", function(){
+        chart.columns.splice(ci, 1);
+        chart.rows.forEach(function(r){ r.splice(ci, 1); });
+        renderInstructionEditor();
+        save();
+      });
+      th.appendChild(delColBtn);
+      headRow.appendChild(th);
+    });
+    var addColTh = document.createElement("th");
+    var addColBtn = document.createElement("button");
+    addColBtn.type = "button";
+    addColBtn.className = "instr-chart-add-col";
+    addColBtn.textContent = "+ Col";
+    addColBtn.addEventListener("click", function(){
+      chart.columns.push("Column " + (chart.columns.length + 1));
+      chart.rows.forEach(function(r){ r.push(""); });
+      renderInstructionEditor();
+      save();
+    });
+    addColTh.appendChild(addColBtn);
+    headRow.appendChild(addColTh);
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var tbody = document.createElement("tbody");
+    chart.rows.forEach(function(row, ri){
+      var tr = document.createElement("tr");
+      row.forEach(function(cell, ci){
+        var td = document.createElement("td");
+        var cellInput = document.createElement("input");
+        cellInput.value = cell;
+        cellInput.addEventListener("input", function(){ chart.rows[ri][ci] = cellInput.value; save(); });
+        td.appendChild(cellInput);
+        tr.appendChild(td);
+      });
+      var delTd = document.createElement("td");
+      var delRowBtn = document.createElement("button");
+      delRowBtn.type = "button";
+      delRowBtn.className = "instr-chart-del-row";
+      delRowBtn.innerHTML = "&times;";
+      delRowBtn.title = "Remove row";
+      delRowBtn.addEventListener("click", function(){
+        chart.rows.splice(ri, 1);
+        renderInstructionEditor();
+        save();
+      });
+      delTd.appendChild(delRowBtn);
+      tr.appendChild(delTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    var addRowBtn = document.createElement("button");
+    addRowBtn.type = "button";
+    addRowBtn.className = "instr-chart-add-row";
+    addRowBtn.textContent = "+ Add row";
+    addRowBtn.addEventListener("click", function(){
+      chart.rows.push(chart.columns.map(function(){ return ""; }));
+      renderInstructionEditor();
+      save();
+    });
+    wrap.appendChild(addRowBtn);
+
+    return wrap;
   }
 
   // items: the array `it` lives in (for delete). opts: {hasDesc, hasType, placeholder}
@@ -4358,6 +4652,17 @@ if (msftIsConfigured()){
       switchToView("checklist");
       renderSidebar();
       renderMain();
+    },
+    setItemDone: function(checklistId, itemId, done){
+      var cl = checklistById(state, checklistId);
+      if(!cl) return;
+      var found = false;
+      cl.sections.forEach(function(s){
+        s.items.forEach(function(it){
+          if(it.id === itemId){ it.done = !!done; found = true; }
+        });
+      });
+      if(found){ save(); renderSidebar(); renderMain(); }
     },
     refresh: function(){ renderSidebar(); renderMain(); }
   };
